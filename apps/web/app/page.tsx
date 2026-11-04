@@ -4,6 +4,22 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./auth-provider";
 
 type Scope = "scope_1" | "scope_2";
+type EmissionFactor = {
+  id: string;
+  code: string;
+  name: string;
+  value_kgco2e: string;
+  denominator_unit: string;
+  activity_category: string;
+  methodology: string;
+  geography: string;
+  source_name: string;
+  source_url: string;
+  source_year: number;
+  version: string;
+  approval_status: "pending" | "approved";
+  approved_at: string | null;
+};
 type Activity = {
   id: string;
   name: string;
@@ -65,6 +81,9 @@ export default function Dashboard() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [factors, setFactors] = useState<EmissionFactor[]>([]);
+  const [factorBusy, setFactorBusy] = useState("");
+  const [factorNotes, setFactorNotes] = useState<Record<string, string>>({});
   const [scope1, setScope1] = useState(0);
   const [scope2, setScope2] = useState(0);
   const [form, setForm] = useState({
@@ -120,6 +139,57 @@ export default function Dashboard() {
     });
     return () => { active = false; };
   }, [auth.user, auth.tenantId]);
+
+  async function refreshFactors() {
+    if (!auth.user?.access_token || !auth.tenantId) return;
+    const response = await fetch(`${apiUrl}/v1/emission-factors`, {
+      headers: {
+        Authorization: `Bearer ${auth.user.access_token}`,
+        "X-Tenant-ID": auth.tenantId,
+      },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.detail || "Коэффициентийн санг уншиж чадсангүй.");
+    }
+    setFactors(await response.json());
+  }
+
+  useEffect(() => {
+    if (active !== "factors" || !auth.user || !auth.tenantId) return;
+    refreshFactors().catch((error) => setNotice(error instanceof Error ? error.message : "Коэффициент уншихад алдаа гарлаа."));
+  }, [active, auth.user, auth.tenantId]);
+
+  async function approveFactor(factorId: string) {
+    const note = (factorNotes[factorId] || "").trim();
+    if (note.length < 10) {
+      setNotice("Баталгаажуулалтын тайлбар хамгийн багадаа 10 тэмдэгт байх ёстой.");
+      return;
+    }
+    setFactorBusy(factorId);
+    setNotice("");
+    try {
+      const response = await fetch(`${apiUrl}/v1/emission-factors/${factorId}/approve`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.user?.access_token || ""}`,
+          "X-Tenant-ID": auth.tenantId,
+        },
+        body: JSON.stringify({ note }),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.detail || "Коэффициентийг баталж чадсангүй.");
+      await refreshFactors();
+      setFactorNotes((current) => ({ ...current, [factorId]: "" }));
+      setNotice("Коэффициент баталгаажлаа. Аудитын мөр бүртгэгдсэн.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Баталгаажуулалтад алдаа гарлаа.");
+    } finally {
+      setFactorBusy("");
+    }
+  }
 
   const total = scope1 + scope2;
   const recordCount = activities.length;
@@ -233,7 +303,7 @@ export default function Dashboard() {
           <p>Өгөгдөл бүртгэж, байгууллагын нөлөөллөө ойлгоорой.</p>
           <button onClick={() => { setActive("factors"); setMobileNav(false); }}>Аргачлалтай танилцах <Icon name="arrow" size={14}/></button>
         </div>
-        <div className="profile-row"><div className="profile-avatar">U</div><div className="profile-copy"><strong>{typeof auth.user.profile.email === "string" ? auth.user.profile.email : "Нэвтэрсэн хэрэглэгч"}</strong><span>OIDC хэрэглэгч</span></div><button aria-label="Гарах" onClick={() => void auth.signOut()}><Icon name="close"/></button></div>
+        <div className="profile-row"><div className="profile-avatar">U</div><div className="profile-copy"><strong>{typeof auth.user.profile.email === "string" ? auth.user.profile.email : "Нэвтэрсэн хэрэглэгч"}</strong><span>{auth.role || "Байгууллагын хэрэглэгч"}</span></div><button aria-label="Гарах" onClick={() => void auth.signOut()}><Icon name="close"/></button></div>
       </aside>
 
       <main className="main-area">
@@ -279,7 +349,7 @@ export default function Dashboard() {
 
           {active === "reports" && <section className="panel placeholder-panel"><div className="placeholder-icon"><Icon name="file" size={25}/></div><h3>Тайлангийн төв</h3><p>Одоогийн бүртгэлүүдээ CSV хэлбэрээр экспортлох боломжтой. PDF болон GHG Protocol тайлангийн загвар дараагийн хөгжүүлэлтээр нэмэгдэнэ.</p><button className="button button-primary" onClick={downloadCsv} disabled={!recordCount}><Icon name="download" size={16}/> CSV татах</button></section>}
 
-          {active === "factors" && <section className="panel placeholder-panel"><div className="placeholder-icon"><Icon name="leaf" size={25}/></div><h3>Ялгарлын коэффициент</h3><p>Одоогоор коэффициентын сан холбогдоогүй. Бүртгэл бүрт эх сурвалж, HTTPS холбоос, он, хувилбар бүхий коэффициентийг гараар оруулна.</p><div className="info-callout">Баталгаагүй Монголын цахилгаан, түлшний коэффициентийг системд урьдчилан оруулаагүй.</div><button className="text-action" onClick={() => setShowForm(true)}>Коэффициенттэй өгөгдөл нэмэх <Icon name="arrow" size={14}/></button></section>}
+          {active === "factors" && <section className="panel factor-panel"><div className="panel-heading"><div><h3>Ялгарлын коэффициентийн сан</h3><p>Pending коэффициентийг эрх бүхий reviewer эх сурвалж, он, нэгжийг шалгаж батална.</p></div><button className="button button-quiet" onClick={() => void refreshFactors()}>Шинэчлэх</button></div>{factors.length === 0 ? <div className="chart-empty"><div className="empty-chart-icon"><Icon name="leaf" size={22}/></div><strong>Коэффициент бүртгэгдээгүй байна</strong><p>Өгөгдөл тооцоолох үед ашигласан коэффициент энд pending төлөвөөр үүснэ.</p><button className="button button-primary" onClick={() => setShowForm(true)}>Өгөгдөл бүртгэх</button></div> : <div className="factor-list">{factors.map((factor) => <article className="factor-card" key={factor.id}><div className="factor-main"><div><strong>{factor.name}</strong><small>{factor.code} · {factor.activity_category} · {factor.geography}</small></div><span className={`factor-status ${factor.approval_status}`}>{factor.approval_status === "approved" ? "Батлагдсан" : "Хяналт хүлээж байна"}</span></div><div className="factor-meta"><span><b>{formatNumber(Number(factor.value_kgco2e))}</b> kgCO₂e / {factor.denominator_unit}</span><span>{factor.methodology}</span><span>{factor.source_year} · v{factor.version}</span></div><a href={factor.source_url} target="_blank" rel="noreferrer" className="factor-source">{factor.source_name} ↗</a>{factor.approval_status === "pending" && (["owner","admin","reviewer"].includes(auth.role) ? <div className="factor-review"><textarea value={factorNotes[factor.id] || ""} onChange={(event) => setFactorNotes((current) => ({ ...current, [factor.id]: event.target.value }))} placeholder="Эх сурвалж, газарзүй, он, нэгжийг хэрхэн шалгаснаа тайлбарлана уу…" rows={2}/><button className="button button-primary" disabled={factorBusy === factor.id || (factorNotes[factor.id] || "").trim().length < 10} onClick={() => void approveFactor(factor.id)}>{factorBusy === factor.id ? "Баталж байна…" : "Баталгаажуулах"}</button></div> : <p className="factor-permission">Таны эрх коэффициент баталгаажуулах боломжгүй.</p>)}</article>)}</div>}</section>}
 
           {active === "settings" && <section className="panel settings-panel"><div className="panel-heading"><div><h3>Ажлын орчны тохиргоо</h3><p>Төслийн холболт болон тайлангийн үндсэн мэдээлэл</p></div></div><div className="setting-row"><div><strong>Workspace</strong><span>Nomad workspace</span></div><span className="setting-status">Local preview</span></div><div className="setting-row"><div><strong>API endpoint</strong><span>{apiUrl}</span></div><span className="setting-status">Тохируулж болно</span></div><div className="setting-row"><div><strong>Тайлангийн валют</strong><span>MNT · Монгол төгрөг</span></div><span className="setting-status">Суурь тохиргоо</span></div><div className="setting-row"><div><strong>Өгөгдөл хадгалалт</strong><span>Бүртгэлүүд байгууллагын PostgreSQL санд хадгалагдана; баталгаажуулалтын workflow тусдаа.</span></div><span className="setting-status">Server-side DB</span></div></section>}
 
