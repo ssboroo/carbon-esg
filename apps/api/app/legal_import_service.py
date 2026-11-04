@@ -17,10 +17,7 @@ def import_reviewed_act(db, *, code: str, title: str, url: str, version: str,
     from app.legal_source_fetch import validate_source_url
     validate_source_url(url)
     full_text, parsed = load_legal_source(url)
-    flat_provisions = [
-        {key: value for key, value in item.items() if key != "parent_code"}
-        for item in parsed
-    ]
+    flat_provisions = parsed
     return ingest_consolidated_act(
         db,
         official_identifier=code,
