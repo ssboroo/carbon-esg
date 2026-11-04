@@ -60,6 +60,13 @@ def upload_evidence_file(
     db: Session = Depends(get_db),
 ):
     """Upload private evidence after file-signature validation and ClamAV scan."""
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_EVIDENCE_BYTES + 1024 * 1024:
+                raise HTTPException(status_code=413, detail="Multipart request exceeds the 16 MB request limit")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header") from None
     content = file.file.read(MAX_EVIDENCE_BYTES + 1)
     request_id = request.headers.get("X-Request-ID")
     if request_id and len(request_id) > 80:
