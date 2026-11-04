@@ -46,7 +46,7 @@ docker run --rm -p 8000:8000 \
   carbon-esg-api
 ```
 
-Configure `CORS_ORIGINS` as a comma-separated allow-list of exact trusted web origins. Do not use a wildcard. Configure the API issuer, audience, and JWKS URL to match the OIDC provider and API resource registration. Run Alembic migrations separately with a restricted database-migrator/owner credential via `MIGRATION_DATABASE_URL`; never pass that credential into the running API container. Execute `apps/api/scripts/bootstrap_runtime_role.sql` as the database owner, then set a strong password for `carbon_esg_app`. The application role must remain `NOSUPERUSER`, `NOBYPASSRLS`, and must not own tenant tables. The API runtime connects only as `carbon_esg_app`; Alembic uses `MIGRATION_DATABASE_URL`.
+Configure `CORS_ORIGINS` as a comma-separated allow-list of exact trusted web origins. Do not use a wildcard. Configure the API issuer, audience, and JWKS URL to match the OIDC provider and API resource registration. Run Alembic migrations separately with a restricted database-migrator/owner credential via `MIGRATION_DATABASE_URL`; never pass that credential into the running API container. Example: `MIGRATION_DATABASE_URL=postgresql+psycopg://carbon_esg_migrator:...@db.example.com/carbon_esg alembic upgrade head`. After migrations, execute `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/bootstrap_runtime_role.sql` as the database owner, then set a strong password for `carbon_esg_app` (for example, with `psql` `\\password carbon_esg_app`). The application role must remain `NOSUPERUSER`, `NOBYPASSRLS`, and must not own tenant tables. The API runtime connects only as `carbon_esg_app`; Alembic uses `MIGRATION_DATABASE_URL`.
 
 ## First-user and organization provisioning
 
