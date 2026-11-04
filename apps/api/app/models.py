@@ -51,6 +51,7 @@ class EmissionFactor(Base):
     __tablename__ = "emission_factors"
     __table_args__ = (
         CheckConstraint("value_kgco2e >= 0", name="ck_factor_nonnegative"),
+        CheckConstraint("source_url LIKE 'https://%'", name="ck_factor_source_https"),
         UniqueConstraint("tenant_id", "code", "version", name="uq_factor_tenant_code_version"),
         Index("ix_factor_tenant_validity", "tenant_id", "valid_from", "valid_to"),
     )
@@ -78,6 +79,8 @@ class ActivityRecord(Base):
     __tablename__ = "activity_records"
     __table_args__ = (
         CheckConstraint("amount > 0", name="ck_activity_amount_positive"),
+        CheckConstraint("scope IN ('scope_1', 'scope_2', 'scope_3')", name="ck_activity_scope"),
+        CheckConstraint("period_end >= period_start", name="ck_activity_period"),
         Index("ix_activity_tenant_period", "tenant_id", "period_start", "period_end"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
