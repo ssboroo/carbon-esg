@@ -69,7 +69,7 @@ Carbon ESG нь Монгол Улсын хууль, захиргааны хэм 
 1. `legal_registry_mn_seed.json` болон `standards_registry_seed.json` нь зөвхөн metadata discovery жагсаалт.
 2. `python -m scripts.seed_legal_registry` нь metadata-г PostgreSQL-д idempotent байдлаар оруулна.
 3. Албан ёсны Legalinfo HTML-ийг `legal_source_fetch.py`-аар авч, `legal_parser.py`-аар зүйл/заалт болгон задлах боломжтой.
-4. `legal_import_service.py` нь татсан бүтэн эх, задласан заалтыг хувилбарын сан руу хадгалах сервисийн суурь юм.
+4. `python scripts/import_legal_act.py --code ... --title ... --url ... --version ... --domain ... --note ... --human-reviewed` нь хүний хяналт хийсний дараа албан эхийн текстийг хувилбарын санд хадгална. Командыг `apps/api` хавтсаас ажиллуулж `DATABASE_URL` тохируулна.
 5. Хүний хяналтгүйгээр актын төлөвийг `in_force` болгохгүй; draft, consultation, repealed төлөвийг тусад нь хадгална.
 6. Бүтэн эхийн checksum өөрчлөгдвөл хуучин хувилбарыг дарж бичихгүй, шинэ version үүсгэнэ.
 
