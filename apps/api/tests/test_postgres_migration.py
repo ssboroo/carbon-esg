@@ -189,6 +189,32 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0004"
+            assert revision == "20261104_0005"
+    finally:
+        engine.dispose()
+
+
+
+def test_approved_emission_factors_have_database_guard():
+    engine = create_engine(DATABASE_URL)
+    try:
+        with engine.connect() as connection:
+            trigger = connection.execute(
+                text("""
+                    SELECT count(*) FROM pg_trigger
+                    WHERE tgrelid = 'public.emission_factors'::regclass
+                      AND tgname = 'emission_factors_approval_guard'
+                      AND NOT tgisinternal AND tgenabled <> 'D'
+                """)
+            ).scalar_one()
+            assert trigger == 1
+            columns = {
+                row.column_name
+                for row in connection.execute(text("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'emission_factors'
+                """))
+            }
+            assert {"approved_at", "approval_note"}.issubset(columns)
     finally:
         engine.dispose()
