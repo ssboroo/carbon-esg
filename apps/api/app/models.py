@@ -97,6 +97,7 @@ class ActivityRecord(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     scope: Mapped[str] = mapped_column(String(8), nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope_2_basis: Mapped[str | None] = mapped_column(String(24))
     amount: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     unit: Mapped[str] = mapped_column(String(32), nullable=False)
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
