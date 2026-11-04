@@ -1,9 +1,10 @@
 "use server";
 
-import { auth } from "@/lib/auth/server";
+import { auth, authConfigured } from "@/lib/auth/server";
 import { redirect } from "next/navigation";
 
 export async function signUpWithEmail(_previous: { error: string } | null, formData: FormData) {
+  if (!authConfigured) return { error: "Бүртгэлийн үйлчилгээ тохируулагдаагүй байна." };
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
