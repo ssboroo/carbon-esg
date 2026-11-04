@@ -198,10 +198,11 @@ export default function Dashboard() {
   const scope2Share = total > 0 ? (scope2 / total) * 100 : 0;
 
   const chartBars = useMemo(() => {
+    const hasLocationBasedScope2 = activities.some((item) => item.scope === "scope_2" && item.scope2Basis === "location_based");
     const recent = activities.slice(0, 6).reverse().map((item, index) => ({
       label: String(index + 1).padStart(2, "0"),
       scope1: item.scope === "scope_1" ? item.emissions || 0 : 0,
-      scope2: item.scope === "scope_2" ? item.emissions || 0 : 0
+      scope2: item.scope === "scope_2" && (!hasLocationBasedScope2 || item.scope2Basis === "location_based") ? item.emissions || 0 : 0
     }));
     const max = Math.max(...recent.map((item) => item.scope1 + item.scope2), 1);
     return recent.map((item) => ({ ...item, height: Math.max(4, ((item.scope1 + item.scope2) / max) * 100) }));
@@ -363,5 +364,5 @@ export default function Dashboard() {
 }
 
 function ActivityTable({ activities }: { activities: Activity[] }) {
-  return <div className="table-scroll"><table className="activity-table"><thead><tr><th>Нэр</th><th>Scope</th><th>Хэмжээ</th><th>Коэффициентын эх сурвалж</th><th>tCO₂e</th></tr></thead><tbody>{activities.map((item)=><tr key={item.id}><td><strong>{item.name}</strong><small>{item.category}</small></td><td><span className={`scope-pill ${item.scope}`}>{item.scope==="scope_1"?"Scope 1":"Scope 2"}</span></td><td>{formatNumber(Number(item.amount))} {item.unit}</td><td><strong>{item.source}</strong><small>{item.year} · v{item.version}</small></td><td className="emissions-cell">{formatNumber(item.emissions||0)}</td></tr>)}</tbody></table></div>;
+  return <div className="table-scroll"><table className="activity-table"><thead><tr><th>Нэр</th><th>Scope</th><th>Хэмжээ</th><th>Коэффициентын эх сурвалж</th><th>tCO₂e</th></tr></thead><tbody>{activities.map((item)=><tr key={item.id}><td><strong>{item.name}</strong><small>{item.category}{item.scope2Basis ? ` · ${item.scope2Basis}` : ""}</small></td><td><span className={`scope-pill ${item.scope}`}>{item.scope==="scope_1"?"Scope 1":"Scope 2"}</span></td><td>{formatNumber(Number(item.amount))} {item.unit}</td><td><strong>{item.source}</strong><small>{item.year} · v{item.version} · {item.approvalStatus || "pending"}</small></td><td className="emissions-cell">{formatNumber(item.emissions||0)}</td></tr>)}</tbody></table></div>;
 }
