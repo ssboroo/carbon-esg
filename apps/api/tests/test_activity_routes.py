@@ -79,6 +79,10 @@ def test_activity_history_returns_persisted_factor_provenance_for_current_tenant
                 {"tenant": str(tenant_id)},
             )
             rows = list_activity_records(
+                period_start=None,
+                period_end=None,
+                limit=100,
+                offset=0,
                 tenant=TenantContext(tenant_id=tenant_id, user_id=user_id, role="viewer"),
                 db=db,
             )
