@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -128,6 +129,20 @@ def test_persist_calculation_records_provenance_snapshot_and_audit_atomically():
                 "activity_record.created",
                 "calculation_snapshot.created",
             }
+
+            # Snapshots are append-only at the database layer, not merely by convention.
+            with pytest.raises(DBAPIError):
+                with db.begin_nested():
+                    db.execute(
+                        text("UPDATE calculation_snapshots SET engine_version = 'tampered' WHERE id = :id"),
+                        {"id": snapshot_id},
+                    )
+            with pytest.raises(DBAPIError):
+                with db.begin_nested():
+                    db.execute(
+                        text("DELETE FROM calculation_snapshots WHERE id = :id"),
+                        {"id": snapshot_id},
+                    )
 
             # Reusing the same factor provenance key with a changed numeric value
             # must not silently overwrite the original factor.
