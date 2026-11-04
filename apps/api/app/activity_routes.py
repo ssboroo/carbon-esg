@@ -53,7 +53,11 @@ def list_activity_records(
 ):
     query = (
         select(ActivityRecord, EmissionFactor)
-        .join(EmissionFactor, EmissionFactor.id == ActivityRecord.factor_id)
+        .join(
+            EmissionFactor,
+            (EmissionFactor.id == ActivityRecord.factor_id)
+            & (EmissionFactor.tenant_id == tenant.tenant_id),
+        )
         .where(ActivityRecord.tenant_id == tenant.tenant_id)
     )
     if period_start:
