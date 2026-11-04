@@ -83,6 +83,7 @@ def persist_inventory_calculation(
                     source_year=item.factor_year,
                     version=item.factor_version,
                     methodology="user_submitted_pending_human_review",
+                    activity_category=item.category,
                     valid_from=datetime.combine(
                         request.reporting_period_start, time.min, tzinfo=timezone.utc
                     ),
