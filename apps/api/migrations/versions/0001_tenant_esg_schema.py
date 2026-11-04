@@ -132,8 +132,22 @@ def upgrade() -> None:
     op.create_index("ix_audit_org_entity", "audit_events", ["organization_id", "entity_type", "entity_id"])
 
     # Every tenant-owned table is protected even if a query accidentally omits its tenant filter.
-    for table in ("organization_memberships", "emission_factors", "inventories", "activity_records", "calculation_runs", "audit_events"):
+    for table in ("organizations", "emission_factors", "inventories", "activity_records", "calculation_runs", "audit_events"):
         _rls(table)
+
+    # Users must be able to discover their own memberships before a tenant is selected.
+    op.execute("ALTER TABLE organization_memberships ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE organization_memberships FORCE ROW LEVEL SECURITY")
+    op.execute("""
+        CREATE POLICY membership_self_or_tenant ON organization_memberships
+        USING (
+            user_subject = NULLIF(current_setting('app.current_user_subject', true), '')
+            OR organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid
+        )
+        WITH CHECK (
+            organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid
+        )
+    """)
 
     # Factor records are versioned, not edited in place. Add a new version for corrections.
     op.execute("""CREATE FUNCTION prevent_emission_factor_mutation() RETURNS trigger AS $$
