@@ -63,6 +63,52 @@ def ingest_consolidated_act(
     if not provisions:
         raise ValueError("At least one structured provision is required")
 
+    act = db.scalar(select(LegalAct).where(
+        LegalAct.jurisdiction == "MN",
+        LegalAct.official_identifier == official_identifier,
+    ))
+    if act is None:
+        act = LegalAct(
+            jurisdiction="MN", official_identifier=official_identifier,
+            title_mn=title_mn, document_type=document_type, domain=domain,
+            legal_status=legal_status, official_source_url=official_source_url,
+            promulgated_on=promulgated_on, effective_from=effective_from,
+            last_verified_at=datetime.now(timezone.utc),
+            verification_note=verification_note,
+        )
+        db.add(act)
+        db.flush()
+    else:
+        act.title_mn = title_mn
+        act.document_type = document_type
+        act.domain = domain
+        act.legal_status = legal_status
+        act.official_source_url = official_source_url
+        act.promulgated_on = promulgated_on
+        act.effective_from = effective_from
+        act.last_verified_at = datetime.now(timezone.utc)
+        act.verification_note = verification_note
+
+    digest = sha256_text(full_text)
+    existing = db.scalar(select(LegalActVersion).where(
+        LegalActVersion.legal_act_id == act.id,
+        LegalActVersion.version_label == version_label,
+    ))
+    if existing is not None:
+        if existing.content_sha256 != digest:
+            raise ValueError("Version label exists with different content; create a new version label")
+        return existing
+
+    version = LegalActVersion(
+        legal_act_id=act.id, version_label=version_label,
+        source_url=official_source_url, retrieved_at=datetime.now(timezone.utc),
+        full_text=full_text, content_sha256=digest,
+        is_official_consolidated_text=True,
+        change_summary="Human-reviewed official consolidated text import",
+    )
+    db.add(version)
+    db.flush()
+
     ids = {}
     for item in provisions:
         parent_code = item.get("parent_code")
