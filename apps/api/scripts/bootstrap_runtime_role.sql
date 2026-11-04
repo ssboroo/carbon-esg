@@ -16,14 +16,19 @@ $$;
 
 SELECT format('GRANT CONNECT ON DATABASE %I TO carbon_esg_app', current_database()) \gexec
 GRANT USAGE ON SCHEMA public TO carbon_esg_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO carbon_esg_app;
+
+-- Read access is explicit across current application tables.
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO carbon_esg_app;
+
+-- Only workflows that currently need writes receive them.
+GRANT INSERT, UPDATE ON emission_factors TO carbon_esg_app;
+GRANT INSERT ON activity_records, evidence, calculation_snapshots, audit_events TO carbon_esg_app;
+
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO carbon_esg_app;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO carbon_esg_app;
 
--- Future application tables created by the migration owner inherit the same DML grants.
+-- New tables are readable by default; write privileges require an explicit migration.
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO carbon_esg_app;
+    GRANT SELECT ON TABLES TO carbon_esg_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT USAGE, SELECT ON SEQUENCES TO carbon_esg_app;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public
-    GRANT EXECUTE ON FUNCTIONS TO carbon_esg_app;
