@@ -44,6 +44,7 @@ class ActivityInput(BaseModel):
     factor_source_url: HttpUrl
     factor_year: int = Field(ge=1900, le=2200)
     factor_version: str = Field(min_length=1, max_length=80)
+    scope_2_basis: Literal["location_based", "market_based"] | None = None
 
     @field_validator("factor_source_url")
     @classmethod
@@ -62,6 +63,10 @@ class ActivityInput(BaseModel):
             raise ValueError(
                 f"Category '{self.category}' is not valid for {self.scope}"
             )
+        if self.scope == "scope_1" and self.scope_2_basis is not None:
+            raise ValueError("scope_2_basis is only valid for Scope 2 records")
+        if self.scope == "scope_2" and self.scope_2_basis is None:
+            raise ValueError("Scope 2 records must declare location_based or market_based")
         return self
 
 
