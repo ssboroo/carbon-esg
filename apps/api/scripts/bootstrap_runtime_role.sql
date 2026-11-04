@@ -10,7 +10,8 @@ REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM carbon_esg_app;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO carbon_esg_app;
 
 -- Only workflows that currently need writes receive them.
-GRANT INSERT ON emission_factors TO carbon_esg_app;
+GRANT INSERT (id, tenant_id, code, name, value_kgco2e, numerator_unit, denominator_unit, geography, source_name, source_url, source_year, version, methodology, activity_category, valid_from, valid_to, approval_status)
+    ON emission_factors TO carbon_esg_app;
 GRANT UPDATE (approval_status, approved_by, approved_at, approval_note)
     ON emission_factors TO carbon_esg_app;
 GRANT INSERT ON activity_records, evidence, calculation_snapshots, audit_events TO carbon_esg_app;
