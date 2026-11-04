@@ -157,10 +157,12 @@ def test_calculation_uses_only_approved_tenant_factor_and_persists_provenance():
             )).all()
             assert len(activities) == 1
             assert activities[0].factor_id == approved_id
+            assert activities[0].scope_2_basis == "location_based"
             assert len(snapshots) == 1
             assert snapshots[0].result_payload["factor_status"] == "approved"
             assert snapshots[0].result_payload["review_status"] == "pending_review"
-            assert "factor_provenance" in snapshots[0].input_digest or len(snapshots[0].input_digest) == 64
+            assert snapshots[0].result_payload["scope_2_location_based_tco2e"] == "0.500000"
+            assert len(snapshots[0].input_digest) == 64
             assert any(event.action == "calculation_snapshot.created_from_approved_factors" for event in events)
             assert any(event.action == "activity_record.created_from_approved_factor" for event in events)
     finally:
