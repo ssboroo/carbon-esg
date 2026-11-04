@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { useAuth } from "./auth-provider";
 
-type Scope = "scope_1" | "scope_2";
+type Scope = "scope_1" | "scope_2" | "scope_3";
 type EmissionFactor = {
   id: string;
   code: string;
@@ -30,6 +30,15 @@ type EvidenceRecord = {
   scan_status: string;
   created_at: string;
 };
+type Scope3Assessment = {
+  category: string;
+  label: string;
+  reporting_year: number;
+  applicability: "relevant" | "not_relevant" | "not_assessed";
+  rationale: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+};
 type Activity = {
   id: string;
   name: string;
@@ -55,6 +64,7 @@ const navItems = [
   { id: "reports", label: "Тайлан", icon: "file" },
   { id: "factors", label: "Коэффициент", icon: "leaf" },
   { id: "evidence", label: "Нотлох баримт", icon: "file" },
+  { id: "scope3", label: "Scope 3 үнэлгээ", icon: "layers" },
   { id: "settings", label: "Тохиргоо", icon: "settings" }
 ] as const;
 
@@ -102,6 +112,11 @@ export default function Dashboard() {
   const [evidenceDownloadUrl, setEvidenceDownloadUrl] = useState("");
   const [scope1, setScope1] = useState(0);
   const [scope2, setScope2] = useState(0);
+  const [scope3, setScope3] = useState(0);
+  const [scope3Assessments, setScope3Assessments] = useState<Scope3Assessment[]>([]);
+  const [scope3Selections, setScope3Selections] = useState<Record<string, string>>({});
+  const [scope3Rationales, setScope3Rationales] = useState<Record<string, string>>({});
+  const [scope3Busy, setScope3Busy] = useState("");
   const [form, setForm] = useState({
     name: "", scope: "scope_2" as Scope, category: "purchased_electricity",
     amount: "", unit: "kWh", factor: "", source: "", sourceUrl: "",
@@ -143,8 +158,10 @@ export default function Dashboard() {
     const locationTotal = mapped.filter((item) => item.scope === "scope_2" && item.scope2Basis === "location_based").reduce((sum, item) => sum + (item.emissions || 0), 0);
     const marketTotal = mapped.filter((item) => item.scope === "scope_2" && item.scope2Basis === "market_based").reduce((sum, item) => sum + (item.emissions || 0), 0);
     const unclassifiedTotal = mapped.filter((item) => item.scope === "scope_2" && !item.scope2Basis).reduce((sum, item) => sum + (item.emissions || 0), 0);
+    const scope3Total = mapped.filter((item) => item.scope === "scope_3").reduce((sum, item) => sum + (item.emissions || 0), 0);
     setScope1(scope1Total);
     setScope2(locationTotal > 0 ? locationTotal : marketTotal > 0 ? marketTotal : unclassifiedTotal);
+    setScope3(scope3Total);
   }
 
   useEffect(() => {
