@@ -73,6 +73,7 @@ class EmissionFactor(Base):
     source_year: Mapped[int] = mapped_column(Integer, nullable=False)
     version: Mapped[str] = mapped_column(String(80), nullable=False)
     methodology: Mapped[str] = mapped_column(String(160), nullable=False)
+    activity_category: Mapped[str] = mapped_column(String(64), nullable=False)
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     approval_status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending")
