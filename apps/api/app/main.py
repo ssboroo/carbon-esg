@@ -10,7 +10,8 @@ from .calculator import calculate_inventory
 from .database import engine, get_db
 from .auth import TenantContext, require_roles
 from .persistence import persist_inventory_calculation
-from .schemas import InventoryCalculationRequest, InventoryCalculationResult
+from .approved_calculation import calculate_and_persist_approved
+from .schemas import ApprovedInventoryCalculationRequest, InventoryCalculationRequest, InventoryCalculationResult
 from .factor_routes import router as emission_factor_router
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
@@ -142,6 +143,45 @@ def create_calculation(
     return result.model_copy(
         update={"snapshot_id": snapshot_id, "review_status": "pending_review"}
     )
+
+
+@app.post(
+    "/v1/calculations/approved",
+    response_model=InventoryCalculationResult,
+    summary="Calculate using approved tenant emission factors",
+    tags=["calculations"],
+)
+def create_approved_calculation(
+    payload: ApprovedInventoryCalculationRequest,
+    http_request: Request,
+    tenant: TenantContext = Depends(require_roles("owner", "admin", "manager")),
+    db: Session = Depends(get_db),
+) -> InventoryCalculationResult:
+    """Calculate using only approved, tenant-owned, in-period registry factors.
+
+    The factor provenance is approved; activity evidence and the resulting
+    inventory snapshot remain pending independent human review.
+    """
+    request_id = http_request.headers.get("X-Request-ID")
+    if request_id and len(request_id) > 80:
+        request_id = None
+    try:
+        return calculate_and_persist_approved(
+            db,
+            tenant_id=tenant.tenant_id,
+            user_id=tenant.user_id,
+            payload=payload,
+            request_id=request_id,
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Approved-factor calculation could not be persisted; no result was committed",
+        ) from None
 
 
 @app.get("/v1/me", tags=["identity"])
