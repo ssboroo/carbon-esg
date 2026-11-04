@@ -1,0 +1,47 @@
+name: Deployment validation
+
+on:
+  push:
+    paths:
+      - "apps/api/**"
+      - "apps/web/**"
+      - "render.yaml"
+      - "DEPLOYMENT.md"
+      - ".github/workflows/deploy-validation.yml"
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "apps/web/**"
+      - "render.yaml"
+      - "DEPLOYMENT.md"
+      - ".github/workflows/deploy-validation.yml"
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  web-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://example-api.onrender.com

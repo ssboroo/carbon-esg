@@ -1,0 +1,35 @@
+# Render Blueprint for the free MVP preview.
+# Free API instances sleep after inactivity; do not use for customer production data.
+services:
+  - type: web
+    name: carbon-esg-api
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: apps/api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: CORS_ORIGINS
+        fromService:
+          type: web
+          name: carbon-esg-web
+          envVarKey: RENDER_EXTERNAL_URL
+
+  - type: web
+    name: carbon-esg-web
+    runtime: static
+    rootDir: apps/web
+    buildCommand: npm install && npm run build
+    staticPublishPath: out
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: carbon-esg-api
+          envVarKey: RENDER_EXTERNAL_URL

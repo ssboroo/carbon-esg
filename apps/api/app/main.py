@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,12 +12,21 @@ app = FastAPI(
     description="API for auditable organizational greenhouse-gas accounting.",
 )
 
+# Configure exact trusted browser origins per environment. Never allow wildcard CORS.
+cors_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+if not cors_origins or "*" in cors_origins:
+    raise RuntimeError("CORS_ORIGINS must contain explicit trusted origins, not '*'. ")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
