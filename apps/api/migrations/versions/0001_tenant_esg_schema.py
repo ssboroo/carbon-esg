@@ -13,7 +13,7 @@ branch_labels = None
 depends_on = None
 
 
-def _rls(table: str) -> None:
+def _rls(table: str, tenant_column: str = "organization_id") -> None:
     op.execute(sa.text(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY"))
     op.execute(sa.text(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY"))
     op.execute(sa.text(
@@ -132,7 +132,8 @@ def upgrade() -> None:
     op.create_index("ix_audit_org_entity", "audit_events", ["organization_id", "entity_type", "entity_id"])
 
     # Every tenant-owned table is protected even if a query accidentally omits its tenant filter.
-    for table in ("organizations", "emission_factors", "inventories", "activity_records", "calculation_runs", "audit_events"):
+    _rls("organizations", "id")
+    for table in ("emission_factors", "inventories", "activity_records", "calculation_runs", "audit_events"):
         _rls(table)
 
     # Users must be able to discover their own memberships before a tenant is selected.
