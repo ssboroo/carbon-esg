@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
 import jwt
+import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app import auth
@@ -73,9 +75,6 @@ def test_neon_token_rejects_wrong_issuer(monkeypatch):
         algorithm="EdDSA",
         headers={"kid": "test-key"},
     )
-
-    from fastapi import HTTPException
-    import pytest
 
     with pytest.raises(HTTPException) as exc:
         auth.verify_neon_token(token)
