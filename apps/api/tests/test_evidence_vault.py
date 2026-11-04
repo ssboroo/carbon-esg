@@ -9,6 +9,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from app.evidence_vault import (
@@ -152,6 +153,19 @@ def test_private_evidence_upload_is_scanned_audited_and_downloaded_with_short_ur
                 text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
                 {"tenant": str(tenant_id)},
             )
+            with pytest.raises(DBAPIError):
+                with seed_engine.begin() as owner:
+                    owner.execute(
+                        text("UPDATE evidence SET original_filename = 'tampered.pdf' WHERE id = :id"),
+                        {"id": evidence.id},
+                    )
+            with pytest.raises(DBAPIError):
+                with seed_engine.begin() as owner:
+                    owner.execute(
+                        text("DELETE FROM evidence WHERE id = :id"),
+                        {"id": evidence.id},
+                    )
+
             url = create_evidence_download_url(
                 db,
                 tenant_id=tenant_id,
@@ -176,6 +190,7 @@ def test_private_evidence_upload_is_scanned_audited_and_downloaded_with_short_ur
             assert any(event.action == "evidence.uploaded" for event in events)
             assert any(event.action == "evidence.download_url.issued" for event in events)
 
+            stored_before = len(storage.objects)
             with pytest.raises(HTTPException) as infected:
                 upload_evidence(
                     db,
@@ -187,7 +202,7 @@ def test_private_evidence_upload_is_scanned_audited_and_downloaded_with_short_ur
                     storage_client=storage,
                 )
             assert infected.value.status_code == 422
-            assert not any(key.endswith("infected") for key in storage.objects)
+            assert len(storage.objects) == stored_before
             db.rollback()
 
             db.execute(
