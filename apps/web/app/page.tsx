@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useMemo, useState } from "react";
 
 type Scope = "scope_1" | "scope_2";
 type Activity = {
@@ -30,7 +30,7 @@ const navItems = [
 
 function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true as const };
-  const paths: Record<string, React.ReactNode> = {
+  const paths: Record<string, ReactNode> = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
     layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></>,
     file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h8"/></>,
@@ -213,7 +213,7 @@ export default function Dashboard() {
 
             <section className="dashboard-grid">
               <article className="panel emissions-panel"><div className="panel-heading"><div><h3>Ялгарлын тойм</h3><p>Бүртгэсэн өгөгдлийн нийлбэр дүн</p></div><span className="panel-tag">tCO₂e</span></div>
-                {recordCount === 0 ? <div className="chart-empty"><div className="empty-chart-icon"><Icon name="layers" size={22}/></div><strong>Одоогоор өгөгдөл алга</strong><p>Эхний хэрэглээгээ бүртгэхэд график автоматаар шинэчлэгдэнэ.</p><button className="text-action" onClick={() => setShowForm(true)}>Өгөгдөл бүртгэх <Icon name="arrow" size={14}/></button></div> : <div className="chart-area"><div className="chart-y"><span>{formatNumber(Math.max(...chartBars.map(b=>b.value)))}</span><span>0</span></div><div className="chart-bars">{chartBars.map((bar) => <div className="chart-column" key={bar.label}><div className="bar-track"><div className="bar-fill" style={{height: `${bar.height}%`}}/></div><span>{bar.label}</span></div>)}</div></div>}
+                {recordCount === 0 ? <div className="chart-empty"><div className="empty-chart-icon"><Icon name="layers" size={22}/></div><strong>Одоогоор өгөгдөл алга</strong><p>Эхний хэрэглээгээ бүртгэхэд график автоматаар шинэчлэгдэнэ.</p><button className="text-action" onClick={() => setShowForm(true)}>Өгөгдөл бүртгэх <Icon name="arrow" size={14}/></button></div> : <div className="chart-area"><div className="chart-y"><span>{formatNumber(Math.max(...chartBars.map(b=>b.value)))}</span><span>0</span></div><div className="chart-bars">{chartBars.map((bar) => <div className="chart-column" key={bar.label}><div className="bar-track"><div className="bar-stack" style={{height: `${bar.height}%`}}><i className="bar-fill-s2" style={{height: `${bar.scope2 / Math.max(bar.scope1 + bar.scope2, 0.000001) * 100}%`}}/><i className="bar-fill-s1" style={{height: `${bar.scope1 / Math.max(bar.scope1 + bar.scope2, 0.000001) * 100}%`}}/></div></div><span>{bar.label}</span></div>)}</div></div>}
                 <div className="chart-legend"><span><i className="legend-dot green-dot"/> Scope 1</span><span><i className="legend-dot blue-dot"/> Scope 2</span><small>Бүртгэлийн дарааллаар харуулна</small></div>
               </article>
               <article className="panel breakdown-panel"><div className="panel-heading"><div><h3>Scope задаргаа</h3><p>Нийт ялгарлын эзлэх хувь</p></div><button className="more-button" aria-label="Дэлгэрэнгүй">•••</button></div><div className="donut-wrap"><div className="donut" style={{background: total > 0 ? `conic-gradient(#1c8158 0 ${scope1Share}%, #8bb7d8 ${scope1Share}% 100%)` : "#e9efeb"}}><div className="donut-center"><strong>{formatNumber(total)}</strong><span>tCO₂e</span></div></div></div><div className="breakdown-rows"><div><span><i className="legend-dot green-dot"/> Scope 1</span><strong>{scope1Share.toFixed(1)}%</strong></div><div><span><i className="legend-dot blue-dot"/> Scope 2</span><strong>{scope2Share.toFixed(1)}%</strong></div></div></article>
