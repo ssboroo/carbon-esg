@@ -11,6 +11,7 @@ from .database import engine, get_db
 from .auth import TenantContext, require_roles
 from .persistence import persist_inventory_calculation
 from .schemas import InventoryCalculationRequest, InventoryCalculationResult
+from .factor_routes import router as emission_factor_router
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
@@ -155,3 +156,4 @@ def current_user(tenant: TenantContext = Depends(require_roles("owner", "admin",
 from .legal_routes import router as legal_registry_router
 
 app.include_router(legal_registry_router)
+app.include_router(emission_factor_router)
