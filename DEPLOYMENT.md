@@ -79,3 +79,19 @@ This repository is still a production-readiness work in progress. Do not accept 
 11. Staging deployment, TLS, rollback procedure, load tests, disaster-recovery exercise and independent penetration test.
 
 Free hosting may be appropriate for development or a demo only until persistence, data residency, access controls, backups and recovery commitments have been verified.
+
+
+## Evidence Vault infrastructure
+
+Production startup requires private S3-compatible object storage and a reachable ClamAV daemon. Configure:
+
+- `S3_ENDPOINT_URL`: externally reachable HTTPS endpoint used in presigned URLs.
+- `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
+- `S3_SERVER_SIDE_ENCRYPTION=AES256`, or `aws:kms` with `S3_KMS_KEY_ID`.
+- `CLAMAV_HOST` and `CLAMAV_PORT=3310` on a private network.
+
+Create a private bucket with all public access blocked. Enable object versioning, server-side encryption, access logging, lifecycle/retention policy and tested backups. The application storage identity should be limited to the evidence bucket/prefix and only the required `HeadBucket`, `PutObject`, `GetObject` and compensating `DeleteObject` operations. Do not give it bucket administration or public ACL permissions.
+
+Evidence uploads are limited to 15 MB and signature-checked PDF, PNG, JPEG, CSV or XLSX files. The API scans each file with ClamAV and fails closed if the scanner is unavailable. It calculates SHA-256, writes private objects under a tenant-specific key, and stores append-only evidence metadata and audit events. Download access is issued only through a five-minute presigned URL after tenant authorization. Never expose the object key as a public URL.
+
+The `/ready` endpoint checks PostgreSQL, the private bucket and ClamAV in production. Keep the object-storage endpoint and ClamAV service on trusted networks; do not expose the scanner port to the public internet.
