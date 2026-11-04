@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -105,7 +105,7 @@ def root() -> dict[str, str]:
 )
 def create_calculation(
     request: InventoryCalculationRequest,
-    tenant: TenantContext = __import__("fastapi").Depends(get_current_membership),
+    tenant: TenantContext = Depends(get_current_membership),
 ) -> InventoryCalculationResult:
     # Tenant authorization is required even while this endpoint remains a stateless preview.
     return calculate_inventory(request)
