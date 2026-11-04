@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
 
-Scope = Literal["scope_1", "scope_2"]
+Scope = Literal["scope_1", "scope_2", "scope_3"]
 
 SCOPE_1_CATEGORIES = {
     "stationary_combustion",
@@ -19,6 +19,23 @@ SCOPE_2_CATEGORIES = {
     "purchased_heat",
     "purchased_steam",
     "purchased_cooling",
+}
+SCOPE_3_CATEGORIES = {
+    "purchased_goods_and_services",
+    "capital_goods",
+    "fuel_and_energy_related_activities",
+    "upstream_transportation_and_distribution",
+    "waste_generated_in_operations",
+    "business_travel",
+    "employee_commuting",
+    "upstream_leased_assets",
+    "downstream_transportation_and_distribution",
+    "processing_of_sold_products",
+    "use_of_sold_products",
+    "end_of_life_treatment_of_sold_products",
+    "downstream_leased_assets",
+    "franchises",
+    "investments",
 }
 
 
@@ -58,7 +75,7 @@ class ActivityInput(BaseModel):
         if self.activity_unit.strip().lower() != self.factor_unit.strip().lower():
             raise ValueError("activity_unit must match the emission-factor denominator unit")
 
-        allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES
+        allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES if self.scope == "scope_2" else SCOPE_3_CATEGORIES
         if self.category not in allowed:
             raise ValueError(
                 f"Category '{self.category}' is not valid for {self.scope}"
@@ -147,6 +164,8 @@ class InventoryCalculationResult(BaseModel):
     scope_2_tco2e: Decimal
     scope_2_location_based_tco2e: Decimal = Decimal("0")
     scope_2_market_based_tco2e: Decimal = Decimal("0")
+    scope_3_tco2e: Decimal = Decimal("0")
+    scope_3_category_totals: dict[str, Decimal] = Field(default_factory=dict)
     total_location_based_tco2e: Decimal = Decimal("0")
     total_market_based_tco2e: Decimal = Decimal("0")
     total_tco2e: Decimal
