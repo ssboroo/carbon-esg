@@ -16,7 +16,6 @@ from .factor_routes import router as emission_factor_router
 from .activity_routes import router as activity_record_router
 from .evidence_routes import router as evidence_router
 from .evidence_vault import check_evidence_dependencies
-from .evidence_routes import router as evidence_router
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
@@ -204,5 +203,4 @@ from .legal_routes import router as legal_registry_router
 app.include_router(legal_registry_router)
 app.include_router(emission_factor_router)
 app.include_router(activity_record_router)
-app.include_router(evidence_router)
 app.include_router(evidence_router)
