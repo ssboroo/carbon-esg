@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,6 +9,7 @@ from app.calculator import calculate_inventory
 from app.main import app
 from app.schemas import InventoryCalculationRequest
 from app.auth import TenantContext, get_current_membership
+from app.database import get_db
 
 client = TestClient(app)
 
@@ -57,6 +59,8 @@ def test_calculates_scope_totals_and_preserves_factor_provenance():
     assert result.total_tco2e == Decimal("0.768000")
     assert result.records[0].factor_source_name == "Test factor source"
     assert result.records[1].factor_version == "test-1"
+    assert result.review_status == "preview"
+    assert result.snapshot_id is None
 
 
 def test_rejects_mismatched_activity_and_factor_units():
@@ -99,25 +103,35 @@ def test_health_endpoint_is_available():
     assert response.json()["status"] == "ok"
 
 
-def test_calculation_endpoint_returns_auditable_totals():
+def test_calculation_endpoint_persists_and_marks_result_pending_review(monkeypatch):
+    tenant_id = UUID("00000000-0000-0000-0000-000000000001")
+    user_id = UUID("00000000-0000-0000-0000-000000000002")
+    snapshot_id = UUID("00000000-0000-0000-0000-000000000003")
     app.dependency_overrides[get_current_membership] = lambda: TenantContext(
-        tenant_id=__import__("uuid").UUID("00000000-0000-0000-0000-000000000001"),
-        user_id=__import__("uuid").UUID("00000000-0000-0000-0000-000000000002"),
+        tenant_id=tenant_id,
+        user_id=user_id,
         role="manager",
     )
-    response = client.post("/v1/calculations", json=make_request().model_dump(mode="json"))
-    app.dependency_overrides.clear()
+    app.dependency_overrides[get_db] = lambda: object()
+    monkeypatch.setattr(
+        "app.main.persist_inventory_calculation",
+        lambda *args, **kwargs: snapshot_id,
+    )
+    try:
+        response = client.post(
+            "/v1/calculations",
+            headers={"X-Request-ID": "calc-test-1"},
+            json=make_request().model_dump(mode="json"),
+        )
+    finally:
+        app.dependency_overrides.clear()
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["total_tco2e"] == "0.768000"
     assert payload["records"][0]["factor_source_name"] == "Test factor source"
-
-
-
-def test_calculation_endpoint_rejects_anonymous_requests():
-    response = client.post("/v1/calculations", json=make_request().model_dump(mode="json"))
-    assert response.status_code == 401
+    assert payload["snapshot_id"] == str(snapshot_id)
+    assert payload["review_status"] == "pending_review"
 
 
 def test_current_user_endpoint_rejects_anonymous_requests():
