@@ -75,7 +75,7 @@ class ActivityInput(BaseModel):
         if self.activity_unit.strip().lower() != self.factor_unit.strip().lower():
             raise ValueError("activity_unit must match the emission-factor denominator unit")
 
-        allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES if self.scope == "scope_2" else SCOPE_3_CATEGORIES
+        allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES if self.scope == "scope_2" else SCOPE_3_CATEGORIES if self.scope == "scope_2" else SCOPE_3_CATEGORIES
         if self.category not in allowed:
             raise ValueError(
                 f"Category '{self.category}' is not valid for {self.scope}"
@@ -101,7 +101,7 @@ class ApprovedActivityInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_scope_category_and_basis(self):
-        allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES
+        allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES if self.scope == "scope_2" else SCOPE_3_CATEGORIES
         if self.category not in allowed:
             raise ValueError(f"Category '{self.category}' is not valid for {self.scope}")
         if self.scope == "scope_1" and self.scope_2_basis is not None:
