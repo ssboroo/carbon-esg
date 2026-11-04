@@ -65,6 +65,45 @@ class ActivityInput(BaseModel):
         return self
 
 
+
+class ApprovedActivityInput(BaseModel):
+    """Activity data referencing an already approved tenant factor."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=160)
+    scope: Scope
+    category: str = Field(min_length=1, max_length=64)
+    activity_amount: Decimal = Field(gt=0, max_digits=20, decimal_places=8)
+    activity_unit: str = Field(min_length=1, max_length=32)
+    factor_id: UUID
+    scope_2_basis: Literal["location_based", "market_based"] | None = None
+
+    @model_validator(mode="after")
+    def validate_scope_category_and_basis(self):
+        allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES
+        if self.category not in allowed:
+            raise ValueError(f"Category '{self.category}' is not valid for {self.scope}")
+        if self.scope == "scope_1" and self.scope_2_basis is not None:
+            raise ValueError("scope_2_basis is only valid for Scope 2 records")
+        if self.scope == "scope_2" and self.scope_2_basis is None:
+            raise ValueError("Scope 2 records must declare location_based or market_based")
+        return self
+
+
+class ApprovedInventoryCalculationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reporting_period_start: date
+    reporting_period_end: date
+    records: list[ApprovedActivityInput] = Field(min_length=1, max_length=5000)
+
+    @model_validator(mode="after")
+    def validate_reporting_period(self):
+        if self.reporting_period_end < self.reporting_period_start:
+            raise ValueError("reporting_period_end must be on or after reporting_period_start")
+        return self
+
 class InventoryCalculationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -104,3 +143,4 @@ class InventoryCalculationResult(BaseModel):
     methodology: str = "activity_data × emission_factor_kgCO2e_per_unit; kgCO2e / 1000 = tCO2e"
     snapshot_id: UUID | None = None
     review_status: Literal["preview", "pending_review"] = "preview"
+    factor_status: Literal["unverified", "approved"] = "unverified"
