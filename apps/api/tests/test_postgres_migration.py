@@ -164,6 +164,24 @@ def test_audit_events_have_append_only_trigger():
         engine.dispose()
 
 
+
+def test_calculation_snapshots_have_append_only_trigger():
+    engine = create_engine(DATABASE_URL)
+    try:
+        with engine.connect() as connection:
+            trigger = connection.execute(
+                text("""
+                    SELECT count(*) FROM pg_trigger
+                    WHERE tgrelid = 'public.calculation_snapshots'::regclass
+                      AND tgname = 'calculation_snapshots_no_update_delete'
+                      AND NOT tgisinternal AND tgenabled <> 'D'
+                """)
+            ).scalar_one()
+            assert trigger == 1
+    finally:
+        engine.dispose()
+
+
 def test_alembic_revision_is_applied():
     engine = create_engine(DATABASE_URL)
     try:
@@ -171,6 +189,6 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0003"
+            assert revision == "20261104_0004"
     finally:
         engine.dispose()
