@@ -49,6 +49,7 @@ type AuthContextValue = {
   user: User | null;
   loading: boolean;
   tenantId: string;
+  role: string;
   tenantInput: string;
   setTenantInput: (value: string) => void;
   authConfigured: boolean;
@@ -64,12 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [tenantId, setTenantId] = useState("");
+  const [role, setRole] = useState("");
   const [tenantInput, setTenantInput] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     const manager = getUserManager();
     setTenantId(window.sessionStorage.getItem("carbon_esg_tenant_id") || "");
+    setRole(window.sessionStorage.getItem("carbon_esg_role") || "");
     if (!manager) {
       setLoading(false);
       return;
@@ -104,7 +107,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const manager = getUserManager();
     if (manager) await manager.removeUser();
     window.sessionStorage.removeItem("carbon_esg_tenant_id");
+    window.sessionStorage.removeItem("carbon_esg_role");
     setTenantId("");
+    setRole("");
     setUser(null);
     setError("");
   }, []);
@@ -126,13 +131,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           Authorization: `Bearer ${user.access_token}`,
           "X-Tenant-ID": candidate,
         },
+        cache: "no-store",
       });
+      const body = await response.json().catch(() => null);
       if (!response.ok) {
-        const body = await response.json().catch(() => null);
         throw new Error(body?.detail || "Энэ байгууллагад нэвтрэх эрх олдсонгүй.");
       }
       window.sessionStorage.setItem("carbon_esg_tenant_id", candidate);
+      window.sessionStorage.setItem("carbon_esg_role", body?.role || "");
       setTenantId(candidate);
+      setRole(body?.role || "");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Байгууллагыг шалгаж чадсангүй.");
     }
@@ -142,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     loading,
     tenantId,
+    role,
     tenantInput,
     setTenantInput,
     authConfigured: Boolean(authority && clientId),
@@ -149,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
     selectTenant,
-  }), [user, loading, tenantId, tenantInput, error, signIn, signOut, selectTenant]);
+  }), [user, loading, tenantId, role, tenantInput, error, signIn, signOut, selectTenant]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
