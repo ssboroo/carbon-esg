@@ -56,3 +56,7 @@ def create_calculation(
     request: InventoryCalculationRequest,
 ) -> InventoryCalculationResult:
     return calculate_inventory(request)
+
+
+from .legal_routes import router as legal_registry_router
+app.include_router(legal_registry_router)
