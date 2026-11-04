@@ -1,10 +1,14 @@
 from decimal import Decimal
 
 import pytest
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.calculator import calculate_inventory
+from app.main import app
 from app.schemas import InventoryCalculationRequest
+
+client = TestClient(app)
 
 
 def make_request():
@@ -85,3 +89,19 @@ def test_rejects_reversed_reporting_period():
 
     with pytest.raises(ValidationError):
         InventoryCalculationRequest.model_validate(payload)
+
+
+def test_health_endpoint_is_available():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_calculation_endpoint_returns_auditable_totals():
+    response = client.post("/v1/calculations", json=make_request().model_dump(mode="json"))
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_tco2e"] == "0.768000"
+    assert payload["records"][0]["factor_source_name"] == "Test factor source"
