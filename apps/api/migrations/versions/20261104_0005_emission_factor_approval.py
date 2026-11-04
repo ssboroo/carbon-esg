@@ -9,14 +9,20 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        "emission_factors",
-        sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.add_column(
-        "emission_factors",
-        sa.Column("approval_note", sa.Text(), nullable=True),
-    )
+    columns = {
+        column["name"]
+        for column in sa.inspect(op.get_bind()).get_columns("emission_factors")
+    }
+    if "approved_at" not in columns:
+        op.add_column(
+            "emission_factors",
+            sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
+        )
+    if "approval_note" not in columns:
+        op.add_column(
+            "emission_factors",
+            sa.Column("approval_note", sa.Text(), nullable=True),
+        )
     op.execute("""
         CREATE OR REPLACE FUNCTION guard_approved_emission_factor()
         RETURNS trigger LANGUAGE plpgsql AS $$
