@@ -30,6 +30,14 @@ def upgrade():
             WITH CHECK (tenant_id::text = current_setting('app.current_tenant_id', true))'''
         ))
 
+    op.execute('ALTER TABLE "tenants" ENABLE ROW LEVEL SECURITY')
+    op.execute('ALTER TABLE "tenants" FORCE ROW LEVEL SECURITY')
+    op.execute("""
+        CREATE POLICY tenant_isolation ON tenants
+        USING (id::text = current_setting('app.current_tenant_id', true))
+        WITH CHECK (id::text = current_setting('app.current_tenant_id', true))
+    """)
+
     # Audit events are append-only for the application role.
     op.execute("""
         CREATE OR REPLACE FUNCTION prevent_audit_event_mutation()
@@ -47,6 +55,8 @@ def upgrade():
 
 
 def downgrade():
+    op.execute("DROP POLICY IF EXISTS tenant_isolation ON tenants")
+    op.execute("ALTER TABLE tenants DISABLE ROW LEVEL SECURITY")
     op.execute("DROP TRIGGER IF EXISTS audit_events_no_update_delete ON audit_events")
     op.execute("DROP FUNCTION IF EXISTS prevent_audit_event_mutation()")
     for table in reversed(TENANT_TABLES):
