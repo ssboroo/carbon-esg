@@ -302,3 +302,22 @@ def create_evidence_download_url(
     ))
     db.commit()
     return url
+
+
+def check_evidence_dependencies() -> None:
+    """Readiness probe for private object storage and malware scanner."""
+    try:
+        _s3_client().head_bucket(Bucket=_bucket_name())
+        host = os.getenv("CLAMAV_HOST", "").strip()
+        if not host:
+            raise RuntimeError("CLAMAV_HOST is not configured")
+        scanner = clamd.ClamdNetworkSocket(
+            host=host,
+            port=int(os.getenv("CLAMAV_PORT", "3310")),
+            timeout=5,
+        )
+        if scanner.ping() != "PONG":
+            raise RuntimeError("ClamAV is not ready")
+    except Exception:
+        raise HTTPException(status_code=503, detail="Evidence storage or malware scanner is not ready") from None
+
