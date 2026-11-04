@@ -1,6 +1,6 @@
 import re
 
-ARTICLE_RE = re.compile(r"^\s*(\d{1,3})\s*дугаар\s+зүйл\s*[.\-:–]?\s*(.*)$", re.I)
+ARTICLE_RE = re.compile(r"^\s*(\d{1,3})\s*(?:дүгээр|дугаар)\s+зүйл\s*[.\-:–]?\s*(.*)$", re.I)
 CLAUSE_RE = re.compile(r"^\s*(\d{1,3}(?:\.\d{1,3})+)\s*[.)]?\s*(.*)$")
 
 
