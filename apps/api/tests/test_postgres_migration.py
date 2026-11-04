@@ -189,7 +189,7 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0007"
+            assert revision == "20261104_0008"
     finally:
         engine.dispose()
 
@@ -217,5 +217,13 @@ def test_approved_emission_factors_have_database_guard():
                 """))
             }
             assert {"approved_at", "approval_note", "activity_category"}.issubset(columns)
+            activity_columns = {
+                row.column_name
+                for row in connection.execute(text("""
+                    SELECT column_name FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'activity_records'
+                """))
+            }
+            assert "scope_2_basis" in activity_columns
     finally:
         engine.dispose()
