@@ -55,6 +55,7 @@ def make_request():
                 "factor_source_url": "https://example.org/grid",
                 "factor_year": 2026,
                 "factor_version": "test-2026-v1",
+                "scope_2_basis": "location_based",
             },
         ],
     })

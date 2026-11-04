@@ -56,6 +56,7 @@ def test_reviewer_approval_is_audited_tenant_scoped_and_immutable():
                     source_year=2026,
                     version="2026-v1",
                     methodology="location-based",
+                    activity_category="purchased_electricity",
                     valid_from=datetime(2026, 1, 1, tzinfo=timezone.utc),
                     approval_status="pending",
                 ))
