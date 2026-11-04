@@ -1,5 +1,6 @@
-"""PostgreSQL migration smoke tests. CI runs these against a real PostgreSQL service."""
+"""PostgreSQL migration and tenant-isolation tests run against a real PostgreSQL service."""
 import os
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -48,6 +49,104 @@ def test_all_enterprise_tables_exist_and_rls_is_forced():
         engine.dispose()
 
 
+def test_non_owner_role_cannot_read_another_tenants_rows():
+    """Exercise forced RLS as a non-owner, non-superuser, NOBYPASSRLS role."""
+    engine = create_engine(DATABASE_URL)
+    tenant_a, tenant_b = uuid4(), uuid4()
+    user_a, user_b = uuid4(), uuid4()
+
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'carbon_esg_rls_test') THEN
+                        CREATE ROLE carbon_esg_rls_test NOLOGIN NOINHERIT NOBYPASSRLS;
+                    END IF;
+                END
+                $$;
+            """))
+            connection.execute(text(
+                "ALTER ROLE carbon_esg_rls_test NOLOGIN NOINHERIT NOBYPASSRLS"
+            ))
+            connection.execute(text(
+                "GRANT USAGE ON SCHEMA public TO carbon_esg_rls_test"
+            ))
+            connection.execute(text(
+                "GRANT SELECT ON tenants, memberships TO carbon_esg_rls_test"
+            ))
+
+            connection.execute(text("""
+                INSERT INTO tenants (id, legal_name, country_code)
+                VALUES (:tenant_a, 'RLS Test Tenant A', 'MN'),
+                       (:tenant_b, 'RLS Test Tenant B', 'MN')
+            """), {"tenant_a": tenant_a, "tenant_b": tenant_b})
+            connection.execute(text("""
+                INSERT INTO users (id, email, display_name, is_active)
+                VALUES (:user_a, :email_a, 'RLS Test User A', true),
+                       (:user_b, :email_b, 'RLS Test User B', true)
+            """), {
+                "user_a": user_a,
+                "email_a": f"{user_a}@rls-test.invalid",
+                "user_b": user_b,
+                "email_b": f"{user_b}@rls-test.invalid",
+            })
+            connection.execute(text("""
+                INSERT INTO memberships (id, tenant_id, user_id, role)
+                VALUES (:membership_a, :tenant_a, :user_a, 'viewer'),
+                       (:membership_b, :tenant_b, :user_b, 'admin')
+            """), {
+                "membership_a": uuid4(),
+                "tenant_a": tenant_a,
+                "user_a": user_a,
+                "membership_b": uuid4(),
+                "tenant_b": tenant_b,
+                "user_b": user_b,
+            })
+
+        with engine.begin() as connection:
+            role = connection.execute(text("""
+                SELECT rolsuper, rolbypassrls
+                FROM pg_roles WHERE rolname = 'carbon_esg_rls_test'
+            """)).one()
+            assert role.rolsuper is False
+            assert role.rolbypassrls is False
+
+            connection.execute(text("SET LOCAL ROLE carbon_esg_rls_test"))
+            # No tenant context must fail closed.
+            assert connection.execute(
+                text("SELECT count(*) FROM memberships")
+            ).scalar_one() == 0
+
+            connection.execute(
+                text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
+                {"tenant": str(tenant_a)},
+            )
+            visible_a = connection.execute(
+                text("SELECT tenant_id, role FROM memberships")
+            ).all()
+            assert [(row.tenant_id, row.role) for row in visible_a] == [(tenant_a, "viewer")]
+            visible_tenant_a = connection.execute(
+                text("SELECT id FROM tenants")
+            ).scalars().all()
+            assert visible_tenant_a == [tenant_a]
+
+            connection.execute(
+                text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
+                {"tenant": str(tenant_b)},
+            )
+            visible_b = connection.execute(
+                text("SELECT tenant_id, role FROM memberships")
+            ).all()
+            assert [(row.tenant_id, row.role) for row in visible_b] == [(tenant_b, "admin")]
+            visible_tenant_b = connection.execute(
+                text("SELECT id FROM tenants")
+            ).scalars().all()
+            assert visible_tenant_b == [tenant_b]
+    finally:
+        engine.dispose()
+
+
 def test_audit_events_have_append_only_trigger():
     engine = create_engine(DATABASE_URL)
     try:
@@ -72,6 +171,6 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0002"
+            assert revision == "20261104_0003"
     finally:
         engine.dispose()
