@@ -2,51 +2,22 @@
 
 Mongolian-first ESG and greenhouse-gas accounting platform.
 
-## Architecture
+## Project structure
 
-- `apps/web`: Next.js + TypeScript frontend
-- `apps/api`: Python FastAPI backend
-- PostgreSQL multi-tenant persistence is planned; the current calculation endpoint is stateless.
-- Emissions are calculated deterministically from activity data and a supplied, documented emission factor.
-- AI may assist with document extraction and report narratives, but must never invent emission factors or authoritative calculation results.
+- `apps/web`: Next.js + TypeScript dashboard
+- `apps/api`: FastAPI calculation API
+- `DEPLOYMENT.md`: container build instructions and production-readiness checklist
 
-## Current API capability
+## Current functionality
 
-The API currently supports a first-pass Scope 1 and Scope 2 calculation endpoint:
-
-- `GET /health` — service health
-- `POST /v1/calculations` — calculate an inventory from supplied activity records and emission factors
-- `GET /docs` — interactive API documentation
-
-Each record must include its own emission factor, denominator unit, source name, HTTPS source URL, year, and version. The activity unit must match the factor denominator. The API intentionally ships with **no hard-coded emission factors**.
-
-The factor value is interpreted as `kgCO2e per activity unit`. Results are returned in kgCO2e and tCO2e. The current calculation endpoint does not yet persist records or implement the Scope 2 market-based/location-based reporting distinction.
-
-### Example request
-
-```json
-{
-  "reporting_period_start": "2026-01-01",
-  "reporting_period_end": "2026-12-31",
-  "records": [
-    {
-      "name": "Purchased electricity",
-      "scope": "scope_2",
-      "category": "purchased_electricity",
-      "activity_amount": "1000",
-      "activity_unit": "kWh",
-      "emission_factor_kgco2e_per_unit": "0.5",
-      "factor_unit": "kWh",
-      "factor_source_name": "Example source — replace with a verified factor",
-      "factor_source_url": "https://example.org/emission-factors",
-      "factor_year": 2026,
-      "factor_version": "1.0"
-    }
-  ]
-}
-```
-
-The factor in this example is illustrative only and must not be used for actual reporting.
+- Premium responsive Mongolian-language dashboard.
+- Activity form for Scope 1 and Scope 2 records.
+- API-backed deterministic CO2e calculation.
+- Explicit emission-factor source, HTTPS URL, year, unit, and version on each calculation record.
+- CSV export of the records held in the current browser page session.
+- API health endpoint and HTTP/unit tests.
+- Dockerfiles for the web and API services.
+- GitHub Actions checks for API tests, web type-check, and web production build.
 
 ## Local development
 
@@ -60,34 +31,36 @@ pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
 ```
 
-Run API unit tests:
+Run API tests:
 
 ```bash
 cd apps/api
-pytest
+pytest -q
 ```
 
 ### Web
 
 ```bash
 cd apps/web
+cp .env.example .env.local
 npm install
 npm run dev
 ```
 
-## Accounting approach and limitations
+Set `NEXT_PUBLIC_API_URL` to the API origin. The browser calls `POST /v1/calculations`.
 
-The implementation follows the basic activity-data × documented-emission-factor calculation pattern described by the GHG Protocol. A production inventory still requires appropriate, region- and year-specific factors, transparent organizational and operational boundaries, data-quality controls, and review of applicable accounting methods. Scope 2 market-based/location-based accounting, database persistence, authentication, audit-log persistence, reporting exports, and Scope 3 are not yet implemented.
+## Accounting safeguards
 
-References:
-- [GHG Protocol — How do I calculate emissions?](https://ghgptechassistance.zendesk.com/hc/en-us/articles/37790958151700-How-do-I-calculate-emissions)
-- [GHG Protocol — Standards and Guidance](https://ghgprotocol.org/standards-guidance)
+- The API does not bundle or invent emission factors.
+- Every calculation record must provide a factor value, matching activity unit, source name, HTTPS source URL, year, and version.
+- The factor is interpreted as kgCO2e per activity unit.
+- AI is not used as the authoritative calculator.
+- The current implementation is a calculation prototype, not a verified corporate inventory.
 
-## MVP roadmap
+Scope 2 reporting may require location-based and market-based totals depending on the applicable market and contractual-instrument criteria. See the [GHG Protocol Scope 2 Guidance](https://ghgprotocol.org/scope-2-guidance).
 
-1. Organization workspace and authentication
-2. Activity data entry and persistence
-3. Verified Mongolia-relevant emission-factor library with provenance and versioning
-4. Scope 1 and Scope 2 calculation and reporting methods
-5. Audit trail and PDF/Excel exports
-6. Scope 3 and expanded ESG disclosures
+## Important production limitations
+
+**Do not use this version to store real customer or confidential business data yet.** The calculation endpoint is stateless; dashboard records exist only in browser memory. PostgreSQL persistence, authentication, tenant isolation, durable audit logs, verified Mongolia-specific emission factors, complete Scope 2 dual reporting, backups, and production monitoring remain to be implemented and tested.
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the release checklist.
