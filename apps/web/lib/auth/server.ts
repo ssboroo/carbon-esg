@@ -1,16 +1,17 @@
 import { createNeonAuth } from "@neon/auth/next/server";
 
-const baseUrl = process.env.NEON_AUTH_BASE_URL;
-const cookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
+const configuredBaseUrl = process.env.NEON_AUTH_BASE_URL;
+const configuredCookieSecret = process.env.NEON_AUTH_COOKIE_SECRET;
 
-if (!baseUrl) {
-  throw new Error("NEON_AUTH_BASE_URL is required");
-}
-if (!cookieSecret || cookieSecret.length < 32) {
-  throw new Error("NEON_AUTH_COOKIE_SECRET must contain at least 32 characters");
-}
+export const authConfigured = Boolean(
+  configuredBaseUrl && configuredCookieSecret && configuredCookieSecret.length >= 32
+);
 
+// Keep build-time imports safe; server actions and protected pages check authConfigured
+// before using this build-only fallback. Render must provide both real values at runtime.
 export const auth = createNeonAuth({
-  baseUrl,
-  cookies: { secret: cookieSecret }
+  baseUrl: configuredBaseUrl || "https://missing-neon-auth-configuration.invalid/neondb/auth",
+  cookies: {
+    secret: configuredCookieSecret || "build-only-placeholder-secret-never-use-in-production"
+  }
 });
