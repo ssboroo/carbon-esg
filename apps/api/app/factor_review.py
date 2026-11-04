@@ -37,6 +37,8 @@ def approve_emission_factor(
         raise HTTPException(status_code=404, detail="Emission factor not found")
     if factor.approval_status != "pending":
         raise HTTPException(status_code=409, detail="Only pending emission factors can be approved")
+    if factor.activity_category in {"purchased_electricity", "purchased_heat", "purchased_steam", "purchased_cooling"} and factor.methodology not in {"location_based", "market_based", "location-based", "market-based"}:
+        raise HTTPException(status_code=422, detail="Scope 2 factor must declare location-based or market-based methodology before approval")
 
     before_state = {
         "approval_status": factor.approval_status,
