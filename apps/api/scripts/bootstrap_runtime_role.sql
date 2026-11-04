@@ -33,6 +33,8 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO carbon_esg_app;
 
 -- New tables are readable by default; write privileges require an explicit migration.
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    REVOKE INSERT, UPDATE, DELETE ON TABLES FROM carbon_esg_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT ON TABLES TO carbon_esg_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT USAGE, SELECT ON SEQUENCES TO carbon_esg_app;
