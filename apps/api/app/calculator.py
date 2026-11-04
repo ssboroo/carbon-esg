@@ -17,23 +17,28 @@ def round_emissions(value: Decimal) -> Decimal:
 def calculate_inventory(
     request: InventoryCalculationRequest,
 ) -> InventoryCalculationResult:
-    """Deterministic CO2e calculation with distinct Scope 2 accounting bases."""
+    """Deterministic Scope 1/2/3 calculation with dual Scope 2 reporting."""
     results: list[RecordCalculationResult] = []
     scope_1_kg = Decimal("0")
     scope_2_location_kg = Decimal("0")
     scope_2_market_kg = Decimal("0")
     scope_2_unclassified_kg = Decimal("0")
+    scope_3_by_category_kg: dict[str, Decimal] = {}
 
     for record in request.records:
         emissions_kg = record.activity_amount * record.emission_factor_kgco2e_per_unit
         if record.scope == "scope_1":
             scope_1_kg += emissions_kg
-        elif record.scope_2_basis == "location_based":
+        elif record.scope == "scope_2" and record.scope_2_basis == "location_based":
             scope_2_location_kg += emissions_kg
-        elif record.scope_2_basis == "market_based":
+        elif record.scope == "scope_2" and record.scope_2_basis == "market_based":
             scope_2_market_kg += emissions_kg
-        else:
+        elif record.scope == "scope_2":
             scope_2_unclassified_kg += emissions_kg
+        else:
+            scope_3_by_category_kg[record.category] = (
+                scope_3_by_category_kg.get(record.category, Decimal("0")) + emissions_kg
+            )
 
         results.append(
             RecordCalculationResult(
@@ -54,7 +59,7 @@ def calculate_inventory(
         )
 
     # Location-based is the primary Scope 2 figure when both methods are present.
-    # Market-based is always exposed separately; the two are never added together.
+    # Market-based is exposed separately; the two methods are never added together.
     selected_scope_2_kg = (
         scope_2_location_kg
         if scope_2_location_kg > 0
@@ -66,6 +71,11 @@ def calculate_inventory(
     location_tonnes = scope_2_location_kg / KG_PER_TONNE
     market_tonnes = scope_2_market_kg / KG_PER_TONNE
     selected_scope_2_tonnes = selected_scope_2_kg / KG_PER_TONNE
+    scope_3_by_category_tonnes = {
+        category: round_emissions(value / KG_PER_TONNE)
+        for category, value in sorted(scope_3_by_category_kg.items())
+    }
+    scope_3_tonnes = sum(scope_3_by_category_kg.values(), Decimal("0")) / KG_PER_TONNE
 
     return InventoryCalculationResult(
         reporting_period_start=request.reporting_period_start,
@@ -74,8 +84,10 @@ def calculate_inventory(
         scope_2_tco2e=round_emissions(selected_scope_2_tonnes),
         scope_2_location_based_tco2e=round_emissions(location_tonnes),
         scope_2_market_based_tco2e=round_emissions(market_tonnes),
-        total_location_based_tco2e=round_emissions(scope_1_tonnes + location_tonnes),
-        total_market_based_tco2e=round_emissions(scope_1_tonnes + market_tonnes),
-        total_tco2e=round_emissions(scope_1_tonnes + selected_scope_2_tonnes),
+        scope_3_tco2e=round_emissions(scope_3_tonnes),
+        scope_3_category_totals=scope_3_by_category_tonnes,
+        total_location_based_tco2e=round_emissions(scope_1_tonnes + location_tonnes + scope_3_tonnes),
+        total_market_based_tco2e=round_emissions(scope_1_tonnes + market_tonnes + scope_3_tonnes),
+        total_tco2e=round_emissions(scope_1_tonnes + selected_scope_2_tonnes + scope_3_tonnes),
         records=results,
     )
