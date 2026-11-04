@@ -9,7 +9,7 @@ branch_labels = None
 depends_on = None
 
 TENANT_TABLES = (
-    "memberships", "emission_factors", "activity_records", "evidence",
+    "tenants", "memberships", "emission_factors", "activity_records", "evidence",
     "calculation_snapshots", "audit_events",
 )
 
