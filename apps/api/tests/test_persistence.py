@@ -82,6 +82,10 @@ def test_persist_calculation_records_provenance_snapshot_and_audit_atomically():
                 ))
                 db.flush()
 
+            db.execute(
+                text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
+                {"tenant": str(tenant_id)},
+            )
             request = make_request()
             result = calculate_inventory(request)
             snapshot_id = persist_inventory_calculation(
