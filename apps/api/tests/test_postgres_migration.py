@@ -205,6 +205,7 @@ def test_approved_emission_factors_have_database_guard():
                     WHERE tgrelid = 'public.emission_factors'::regclass
                       AND tgname = 'emission_factors_approval_guard'
                       AND NOT tgisinternal AND tgenabled <> 'D'
+                      AND (tgtype & 4) = 4
                 """)
             ).scalar_one()
             assert trigger == 1
@@ -215,6 +216,6 @@ def test_approved_emission_factors_have_database_guard():
                     WHERE table_schema = 'public' AND table_name = 'emission_factors'
                 """))
             }
-            assert {"approved_at", "approval_note"}.issubset(columns)
+            assert {"approved_at", "approval_note", "activity_category"}.issubset(columns)
     finally:
         engine.dispose()
