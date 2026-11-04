@@ -46,6 +46,7 @@ class EmissionFactor(Base):
         UniqueConstraint("organization_id", "factor_code", "version", name="uq_factor_org_code_version"),
         UniqueConstraint("organization_id", "id", name="uq_factor_org_id"),
         CheckConstraint("factor_value >= 0", name="ck_factor_nonnegative"),
+        CheckConstraint("factor_year BETWEEN 1900 AND 2200", name="ck_factor_year"),
         CheckConstraint("source_url LIKE 'https://%'", name="ck_factor_https_source"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_factor_scope"),
         Index("ix_factors_org_scope_category", "organization_id", "scope", "category"),
@@ -73,6 +74,7 @@ class Inventory(Base):
     __table_args__ = (
         UniqueConstraint("organization_id", "id", name="uq_inventory_org_id"),
         CheckConstraint("reporting_period_end >= reporting_period_start", name="ck_inventory_period"),
+        CheckConstraint("status IN ('draft', 'review', 'approved')", name="ck_inventory_status"),
         Index("ix_inventories_org_period", "organization_id", "reporting_period_start", "reporting_period_end"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -100,6 +102,8 @@ class ActivityRecord(Base):
             name="fk_activity_factor_tenant",
         ),
         CheckConstraint("activity_amount > 0", name="ck_activity_amount_positive"),
+        CheckConstraint("factor_value_snapshot >= 0 AND emissions_kgco2e >= 0", name="ck_activity_emissions_nonnegative"),
+        CheckConstraint("activity_unit = factor_unit_snapshot", name="ck_activity_units_match"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_activity_scope"),
         Index("ix_activity_org_inventory", "organization_id", "inventory_id"),
     )
@@ -129,6 +133,8 @@ class CalculationRun(Base):
             name="fk_calculation_inventory_tenant",
         ),
         Index("ix_calculation_org_inventory_created", "organization_id", "inventory_id", "created_at"),
+        CheckConstraint("scope_1_kgco2e >= 0 AND scope_2_kgco2e >= 0", name="ck_calculation_scopes_nonnegative"),
+        CheckConstraint("total_kgco2e = scope_1_kgco2e + scope_2_kgco2e", name="ck_calculation_total_matches_scopes"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
