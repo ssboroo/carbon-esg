@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .database import set_tenant_context
 from .models import AuditEvent, EmissionFactor
 
 
@@ -72,5 +73,7 @@ def approve_emission_factor(
         request_id=request_id,
     ))
     db.commit()
+    # Re-establish transaction-local RLS context before refreshing after commit.
+    set_tenant_context(db, str(tenant_id))
     db.refresh(factor)
     return factor
