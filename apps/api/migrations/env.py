@@ -12,7 +12,7 @@ if config.config_file_name:
 url = os.getenv("MIGRATION_DATABASE_URL") or os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
 url = url.replace("postgres://", "postgresql+psycopg://", 1) if url.startswith("postgres://") else url
 url = url.replace("postgresql://", "postgresql+psycopg://", 1) if url.startswith("postgresql://") else url
-config.set_main_option("sqlalchemy.url", url)
+config.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
 target_metadata = Base.metadata
 
 
