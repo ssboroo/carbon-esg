@@ -139,3 +139,79 @@ class AuditEvent(Base):
     after_state: Mapped[dict | None] = mapped_column(JSONB)
     request_id: Mapped[str | None] = mapped_column(String(80))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class LegalAct(Base):
+    __tablename__ = "legal_acts"
+    __table_args__ = (
+        UniqueConstraint("jurisdiction", "official_identifier", name="uq_legal_act_jurisdiction_identifier"),
+        Index("ix_legal_act_status_domain", "legal_status", "domain"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    jurisdiction: Mapped[str] = mapped_column(String(8), nullable=False, default="MN")
+    official_identifier: Mapped[str] = mapped_column(String(120), nullable=False)
+    title_mn: Mapped[str] = mapped_column(String(400), nullable=False)
+    title_en: Mapped[str | None] = mapped_column(String(400))
+    document_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    domain: Mapped[str] = mapped_column(String(80), nullable=False)
+    legal_status: Mapped[str] = mapped_column(String(32), nullable=False, default="needs_verification")
+    official_source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    publisher: Mapped[str] = mapped_column(String(160), nullable=False, default="Legalinfo.mn")
+    promulgated_on: Mapped[date | None] = mapped_column(Date)
+    effective_from: Mapped[date | None] = mapped_column(Date)
+    effective_to: Mapped[date | None] = mapped_column(Date)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    verification_note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+class LegalActVersion(Base):
+    __tablename__ = "legal_act_versions"
+    __table_args__ = (UniqueConstraint("legal_act_id", "version_label", name="uq_legal_act_version_label"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    legal_act_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("legal_acts.id", ondelete="CASCADE"), nullable=False)
+    version_label: Mapped[str] = mapped_column(String(120), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    source_published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    full_text: Mapped[str | None] = mapped_column(Text)
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
+    is_official_consolidated_text: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    change_summary: Mapped[str | None] = mapped_column(Text)
+
+
+class LegalProvision(Base):
+    __tablename__ = "legal_provisions"
+    __table_args__ = (
+        UniqueConstraint("legal_act_version_id", "provision_code", name="uq_legal_provision_version_code"),
+        Index("ix_legal_provision_code", "provision_code"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    legal_act_version_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("legal_act_versions.id", ondelete="CASCADE"), nullable=False)
+    parent_provision_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("legal_provisions.id", ondelete="CASCADE"))
+    provision_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    heading: Mapped[str | None] = mapped_column(String(500))
+    full_text: Mapped[str] = mapped_column(Text, nullable=False)
+    effective_from: Mapped[date | None] = mapped_column(Date)
+    effective_to: Mapped[date | None] = mapped_column(Date)
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
+
+
+class ComplianceRequirement(Base):
+    __tablename__ = "compliance_requirements"
+    __table_args__ = (
+        UniqueConstraint("legal_provision_id", "requirement_code", name="uq_compliance_requirement_provision_code"),
+        Index("ix_compliance_requirement_domain", "domain", "applicability"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    legal_provision_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("legal_provisions.id", ondelete="CASCADE"), nullable=False)
+    requirement_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    domain: Mapped[str] = mapped_column(String(80), nullable=False)
+    requirement_summary: Mapped[str] = mapped_column(Text, nullable=False)
+    applicability: Mapped[str] = mapped_column(String(32), nullable=False, default="requires_assessment")
+    responsible_role: Mapped[str | None] = mapped_column(String(80))
+    evidence_types: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    related_product_modules: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    review_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
