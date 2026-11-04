@@ -82,6 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unloaded = () => { if (active) setUser(null); };
     manager.events.addUserLoaded(loaded);
     manager.events.addUserUnloaded(unloaded);
+    if (window.location.pathname === "/auth/callback") {
+      setLoading(false);
+      return () => {
+        active = false;
+        manager.events.removeUserLoaded(loaded);
+        manager.events.removeUserUnloaded(unloaded);
+      };
+    }
     manager.getUser()
       .then((current) => { if (active) setUser(current && !current.expired ? current : null); })
       .catch(() => { if (active) setError("Нэвтрэлтийн төлөвийг унших боломжгүй байна."); })
