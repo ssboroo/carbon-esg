@@ -216,3 +216,35 @@ class ComplianceRequirement(Base):
     review_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Standard(Base):
+    __tablename__ = "standards"
+    __table_args__ = (UniqueConstraint("jurisdiction", "standard_code", name="uq_standard_jurisdiction_code"), Index("ix_standard_status_domain", "status", "domain"))
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    jurisdiction: Mapped[str] = mapped_column(String(8), nullable=False, default="MN")
+    standard_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    title_mn: Mapped[str] = mapped_column(String(500), nullable=False)
+    title_en: Mapped[str | None] = mapped_column(String(500))
+    publisher: Mapped[str] = mapped_column(String(160), nullable=False)
+    domain: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="needs_verification")
+    official_catalog_url: Mapped[str] = mapped_column(Text, nullable=False)
+    adopted_on: Mapped[date | None] = mapped_column(Date)
+    effective_from: Mapped[date | None] = mapped_column(Date)
+    last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    license_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notes: Mapped[str | None] = mapped_column(Text)
+
+class StandardVersion(Base):
+    __tablename__ = "standard_versions"
+    __table_args__ = (UniqueConstraint("standard_id", "version_label", name="uq_standard_version"),)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    standard_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("standards.id", ondelete="CASCADE"), nullable=False)
+    version_label: Mapped[str] = mapped_column(String(80), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    full_text_storage_key: Mapped[str | None] = mapped_column(Text)
+    content_sha256: Mapped[str | None] = mapped_column(String(64))
+    license_reference: Mapped[str | None] = mapped_column(Text)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
