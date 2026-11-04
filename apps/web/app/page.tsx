@@ -94,7 +94,7 @@ export default function Dashboard() {
 
   async function refreshActivities() {
     if (!auth.user?.access_token || !auth.tenantId) return;
-    const response = await fetch(`${apiUrl}/v1/activity-records?limit=500`, {
+    const response = await fetch(`${apiUrl}/v1/activity-records?period_start=2026-01-01&period_end=2026-12-31&limit=500`, {
       headers: {
         Authorization: `Bearer ${auth.user.access_token}`,
         "X-Tenant-ID": auth.tenantId,
