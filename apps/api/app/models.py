@@ -122,7 +122,7 @@ class CalculationSnapshot(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
-    period_end: Mapped[datetime] = mapped_column(Date, nullable=False)
+    period_end: Mapped[date] = mapped_column(Date, nullable=False)
     methodology_version: Mapped[str] = mapped_column(String(80), nullable=False)
     engine_version: Mapped[str] = mapped_column(String(80), nullable=False)
     input_digest: Mapped[str] = mapped_column(String(64), nullable=False)
