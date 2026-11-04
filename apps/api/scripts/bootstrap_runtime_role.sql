@@ -16,6 +16,8 @@ $$;
 
 SELECT format('GRANT CONNECT ON DATABASE %I TO carbon_esg_app', current_database()) \gexec
 GRANT USAGE ON SCHEMA public TO carbon_esg_app;
+REVOKE INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public FROM carbon_esg_app;
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM carbon_esg_app;
 
 -- Read access is explicit across current application tables.
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO carbon_esg_app;
