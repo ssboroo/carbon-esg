@@ -118,6 +118,9 @@ class InventoryCalculationRequest(BaseModel):
     def validate_reporting_period(self):
         if self.reporting_period_end < self.reporting_period_start:
             raise ValueError("reporting_period_end must be on or after reporting_period_start")
+        scope2_basis_values = {record.scope_2_basis for record in self.records if record.scope == "scope_2"}
+        if None in scope2_basis_values and len(scope2_basis_values) > 1:
+            raise ValueError("Do not mix Scope 2 records with and without an accounting basis")
         return self
 
 
@@ -134,6 +137,7 @@ class RecordCalculationResult(BaseModel):
     factor_source_url: str
     factor_year: int
     factor_version: str
+    scope_2_basis: Literal["location_based", "market_based"] | None = None
 
 
 class InventoryCalculationResult(BaseModel):
@@ -141,6 +145,10 @@ class InventoryCalculationResult(BaseModel):
     reporting_period_end: date
     scope_1_tco2e: Decimal
     scope_2_tco2e: Decimal
+    scope_2_location_based_tco2e: Decimal = Decimal("0")
+    scope_2_market_based_tco2e: Decimal = Decimal("0")
+    total_location_based_tco2e: Decimal = Decimal("0")
+    total_market_based_tco2e: Decimal = Decimal("0")
     total_tco2e: Decimal
     records: list[RecordCalculationResult]
     methodology: str = "activity_data × emission_factor_kgCO2e_per_unit; kgCO2e / 1000 = tCO2e"
