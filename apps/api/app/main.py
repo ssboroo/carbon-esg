@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .calculator import calculate_inventory
 from .database import engine
+from .auth import TenantContext, get_current_membership
 from .schemas import InventoryCalculationRequest, InventoryCalculationResult
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
@@ -27,6 +28,8 @@ if "*" in cors_origins:
     raise RuntimeError("CORS_ORIGINS must contain explicit trusted origins, not '*'.")
 if IS_PRODUCTION and not cors_origins:
     raise RuntimeError("CORS_ORIGINS must contain at least one trusted origin in production.")
+if IS_PRODUCTION and not all(os.getenv(key) for key in ("OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL")):
+    raise RuntimeError("OIDC_ISSUER, OIDC_AUDIENCE and OIDC_JWKS_URL are required in production.")
 
 app = FastAPI(
     title="Carbon ESG API",
@@ -102,8 +105,19 @@ def root() -> dict[str, str]:
 )
 def create_calculation(
     request: InventoryCalculationRequest,
+    tenant: TenantContext = __import__("fastapi").Depends(get_current_membership),
 ) -> InventoryCalculationResult:
+    # Tenant authorization is required even while this endpoint remains a stateless preview.
     return calculate_inventory(request)
+
+
+@app.get("/v1/me", tags=["identity"])
+def current_user(tenant: TenantContext = __import__("fastapi").Depends(get_current_membership)):
+    return {
+        "user_id": str(tenant.user_id),
+        "tenant_id": str(tenant.tenant_id),
+        "role": tenant.role,
+    }
 
 
 from .legal_routes import router as legal_registry_router
