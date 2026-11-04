@@ -25,5 +25,6 @@ END
 $$;
 
 SELECT format('GRANT CONNECT ON DATABASE %I TO carbon_esg_migrator, carbon_esg_app', current_database()) \gexec
+GRANT carbon_esg_app TO carbon_esg_migrator;
 ALTER SCHEMA public OWNER TO carbon_esg_migrator;
 GRANT USAGE, CREATE ON SCHEMA public TO carbon_esg_migrator;
