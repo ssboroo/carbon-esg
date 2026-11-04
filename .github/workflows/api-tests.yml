@@ -29,7 +29,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
       - name: Run API tests
-        run: pytest -q
+        run: python -m pytest -q
 
   web-checks:
     runs-on: ubuntu-latest
