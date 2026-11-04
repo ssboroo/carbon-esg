@@ -74,15 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const manager = getUserManager();
-    setTenantId(window.sessionStorage.getItem("carbon_esg_tenant_id") || "");
-    setRole(window.sessionStorage.getItem("carbon_esg_role") || "");
+    const storedTenant = window.sessionStorage.getItem("carbon_esg_tenant_id") || "";
     if (!manager) {
       setLoading(false);
       return;
     }
     let active = true;
     const loaded = (nextUser: User) => { if (active) setUser(nextUser); };
-    const unloaded = () => { if (active) setUser(null); };
+    const unloaded = () => { if (active) { setUser(null); setTenantId(""); setRole(""); } };
     manager.events.addUserLoaded(loaded);
     manager.events.addUserUnloaded(unloaded);
     if (window.location.pathname === "/auth/callback") {
@@ -94,8 +93,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
     manager.getUser()
-      .then((current) => { if (active) setUser(current && !current.expired ? current : null); })
-      .catch(() => { if (active) setError("Нэвтрэлтийн төлөвийг унших боломжгүй байна."); })
+      .then(async (current) => {
+        if (!active) return;
+        if (!current || current.expired) {
+          setUser(null);
+          window.sessionStorage.removeItem("carbon_esg_tenant_id");
+          window.sessionStorage.removeItem("carbon_esg_role");
+          return;
+        }
+        setUser(current);
+        if (!storedTenant) return;
+        const response = await fetch(`${apiUrl}/v1/me`, {
+          headers: {
+            Authorization: `Bearer ${current.access_token}`,
+            "X-Tenant-ID": storedTenant,
+          },
+          cache: "no-store",
+        });
+        const body = await response.json().catch(() => null);
+        if (!active) return;
+        if (!response.ok) {
+          window.sessionStorage.removeItem("carbon_esg_tenant_id");
+          window.sessionStorage.removeItem("carbon_esg_role");
+          setError(body?.detail || "Байгууллагын гишүүнчлэл дахин баталгаажсангүй.");
+          return;
+        }
+        setTenantId(storedTenant);
+        setRole(body?.role || "");
+        window.sessionStorage.setItem("carbon_esg_role", body?.role || "");
+      })
+      .catch(() => { if (active) setError("Нэвтрэлтийн төлөв эсвэл байгууллагын эрхийг шалгаж чадсангүй."); })
       .finally(() => { if (active) setLoading(false); });
     return () => {
       active = false;
@@ -164,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     role,
     tenantInput,
     setTenantInput,
-    authConfigured: Boolean(authority && clientId),
+    authConfigured: Boolean(authority && clientId && apiAudience),
     error,
     signIn,
     signOut,
