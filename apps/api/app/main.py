@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth import get_current_user
 from .calculator import calculate_inventory
 from .schemas import InventoryCalculationRequest, InventoryCalculationResult
+from .organizations import router as organizations_router
 
 app = FastAPI(
     title="Carbon ESG API",
@@ -20,6 +21,8 @@ cors_origins = [
 ]
 if not cors_origins or "*" in cors_origins:
     raise RuntimeError("CORS_ORIGINS must contain explicit trusted origins, not '*'.")
+
+app.include_router(organizations_router)
 
 app.add_middleware(
     CORSMiddleware,
