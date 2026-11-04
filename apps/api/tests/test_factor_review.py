@@ -116,6 +116,20 @@ def test_reviewer_approval_is_audited_tenant_scoped_and_immutable():
                         {"id": factor_id},
                     )
             db.rollback()
+
+        # Confirm the database trigger also blocks privileged direct SQL changes.
+        with pytest.raises(DBAPIError):
+            with seed_engine.begin() as owner:
+                owner.execute(
+                    text("UPDATE emission_factors SET value_kgco2e = 9.99 WHERE id = :id"),
+                    {"id": factor_id},
+                )
+        with pytest.raises(DBAPIError):
+            with seed_engine.begin() as owner:
+                owner.execute(
+                    text("DELETE FROM emission_factors WHERE id = :id"),
+                    {"id": factor_id},
+                )
     finally:
         engine.dispose()
         seed_engine.dispose()
