@@ -18,8 +18,8 @@ def _rls(table: str, tenant_column: str = "organization_id") -> None:
     op.execute(sa.text(f"ALTER TABLE {table} FORCE ROW LEVEL SECURITY"))
     op.execute(sa.text(
         f"CREATE POLICY tenant_isolation ON {table} "
-        "USING (organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid) "
-        "WITH CHECK (organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid)"
+        f"USING ({tenant_column} = NULLIF(current_setting('app.current_organization_id', true), '')::uuid) "
+        f"WITH CHECK ({tenant_column} = NULLIF(current_setting('app.current_organization_id', true), '')::uuid)"
     ))
 
 
