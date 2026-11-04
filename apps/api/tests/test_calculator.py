@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from app.calculator import calculate_inventory
 from app.main import app
 from app.schemas import InventoryCalculationRequest
+from app.auth import TenantContext, get_current_membership
 
 client = TestClient(app)
 
@@ -99,9 +100,26 @@ def test_health_endpoint_is_available():
 
 
 def test_calculation_endpoint_returns_auditable_totals():
+    app.dependency_overrides[get_current_membership] = lambda: TenantContext(
+        tenant_id=__import__("uuid").UUID("00000000-0000-0000-0000-000000000001"),
+        user_id=__import__("uuid").UUID("00000000-0000-0000-0000-000000000002"),
+        role="manager",
+    )
     response = client.post("/v1/calculations", json=make_request().model_dump(mode="json"))
+    app.dependency_overrides.clear()
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["total_tco2e"] == "0.768000"
     assert payload["records"][0]["factor_source_name"] == "Test factor source"
+
+
+
+def test_calculation_endpoint_rejects_anonymous_requests():
+    response = client.post("/v1/calculations", json=make_request().model_dump(mode="json"))
+    assert response.status_code == 401
+
+
+def test_current_user_endpoint_rejects_anonymous_requests():
+    response = client.get("/v1/me", headers={"X-Tenant-ID": "00000000-0000-0000-0000-000000000001"})
+    assert response.status_code == 401
