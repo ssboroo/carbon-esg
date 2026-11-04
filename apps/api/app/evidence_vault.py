@@ -18,6 +18,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .database import set_tenant_context
 from .models import ActivityRecord, AuditEvent, Evidence
 
 MAX_EVIDENCE_BYTES = 15 * 1024 * 1024
@@ -247,6 +248,8 @@ def upload_evidence(
     ))
     try:
         db.commit()
+        # Restore transaction-local tenant RLS context before reloading the row.
+        set_tenant_context(db, str(tenant_id))
         db.refresh(evidence)
     except Exception:
         db.rollback()
