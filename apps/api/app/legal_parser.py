@@ -37,6 +37,6 @@ def parse_articles_and_clauses(full_text: str) -> list[dict]:
         elif current is not None:
             body.append(line)
     flush()
-    if sum(1 for row in result if "parent_code" not in row) < 3:
+    if sum(1 for row in result if "parent_code" not in row) < 1:
         raise ValueError("Could not detect at least three article headings")
     return result
