@@ -6,6 +6,7 @@ Mongolian-first ESG and greenhouse-gas accounting platform.
 
 - `apps/web`: Next.js + TypeScript frontend
 - `apps/api`: Python FastAPI backend
+- Authentication: Neon Managed Better Auth (email/password) with a same-origin Next.js proxy; FastAPI verifies EdDSA JWTs using Neon JWKS.
 - PostgreSQL multi-tenant persistence foundation is defined with SQLAlchemy models, Alembic migration, tenant-scoped composite foreign keys, and PostgreSQL row-level security. The current calculation endpoint remains stateless until authentication and tenant-aware persistence routes are implemented.
 - Emissions are calculated deterministically from activity data and a supplied, documented emission factor.
 - AI may assist with document extraction and report narratives, but must never invent emission factors or authoritative calculation results.
@@ -15,6 +16,7 @@ Mongolian-first ESG and greenhouse-gas accounting platform.
 The API currently supports a first-pass Scope 1 and Scope 2 calculation endpoint:
 
 - `GET /health` — service health
+- `GET /v1/auth/me` — protected identity verification; requires `Authorization: Bearer <Neon JWT>`
 - `POST /v1/calculations` — calculate an inventory from supplied activity records and emission factors
 - `GET /docs` — interactive API documentation
 
@@ -52,7 +54,7 @@ The factor in this example is illustrative only and must not be used for actual 
 
 The API now contains a tenant-scoped schema for organizations, memberships, versioned emission factors, inventories, activity records, calculation snapshots, and audit events. PostgreSQL row-level security requires transaction-local identity and organization context; membership discovery is scoped to the authenticated subject. Composite foreign keys prevent records from referencing another organization's inventory or emission factor. Emission-factor rows are immutable: corrections must be inserted as a new version.
 
-Authentication is deliberately not simulated. Do not expose tenant data routes until a verified identity provider and membership authorization dependency set both RLS contexts on every transaction. Use a restricted runtime database role; do not run the app as a superuser or a role with BYPASSRLS.
+Neon Managed Better Auth is provisioned on the Neon default branch. The web app includes email sign-up/sign-in, same-origin auth proxy, protected workspace, and sign-out. FastAPI validates EdDSA JWT signature, issuer, audience, expiry, and subject. The `GET /v1/auth/me` endpoint is the first protected integration check. Organization membership authorization is not yet wired. Do not expose tenant data routes until a verified identity-to-organization membership dependency sets both RLS contexts on every transaction. Use a restricted runtime database role; do not run the app as a superuser or a role with BYPASSRLS.
 
 Set `DATABASE_URL` to Neon's pooled connection string for runtime requests. Set `DATABASE_URL_UNPOOLED` to the direct (non-pooler) string for migrations. Never commit either secret.
 
@@ -64,6 +66,10 @@ alembic upgrade head
 ```
 
 The migration has not been applied to the shared Neon project. It is version-controlled and must be tested on a disposable Neon branch before any shared/main-branch application.
+
+## Authentication configuration
+
+Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` for the web service. The cookie secret must be at least 32 characters and server-only. Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_JWKS_URL` for FastAPI. Localhost origins are pre-approved by Neon Auth; add the exact production HTTPS frontend origin to Neon Auth trusted domains after the Render URL exists.
 
 ## Local development
 
