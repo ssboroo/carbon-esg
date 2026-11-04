@@ -1,6 +1,7 @@
 """Tenant-aware persistence models for auditable ESG accounting."""
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy import (
     Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index, Integer,
@@ -57,7 +58,7 @@ class EmissionFactor(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     code: Mapped[str] = mapped_column(String(80), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    value_kgco2e: Mapped[float] = mapped_column(Numeric(24, 12), nullable=False)
+    value_kgco2e: Mapped[Decimal] = mapped_column(Numeric(24, 12), nullable=False)
     numerator_unit: Mapped[str] = mapped_column(String(32), nullable=False, default="kgCO2e")
     denominator_unit: Mapped[str] = mapped_column(String(32), nullable=False)
     geography: Mapped[str] = mapped_column(String(80), nullable=False)
@@ -85,9 +86,9 @@ class ActivityRecord(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     scope: Mapped[str] = mapped_column(String(8), nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False)
-    amount: Mapped[float] = mapped_column(Numeric(24, 8), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     unit: Mapped[str] = mapped_column(String(32), nullable=False)
-    period_start: Mapped[datetime] = mapped_column(Date, nullable=False)
+    period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[datetime] = mapped_column(Date, nullable=False)
     factor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("emission_factors.id"), nullable=False)
     data_quality: Mapped[str] = mapped_column(String(24), nullable=False, default="unreviewed")
