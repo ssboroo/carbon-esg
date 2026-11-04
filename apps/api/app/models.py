@@ -124,6 +124,38 @@ class Evidence(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
+
+class Scope3CategoryAssessment(Base):
+    __tablename__ = "scope3_category_assessments"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "reporting_year", "category", name="uq_scope3_assessment_tenant_year_category"),
+        CheckConstraint(
+            "category IN ('purchased_goods_and_services', 'capital_goods', 'fuel_and_energy_related_activities', 'upstream_transportation_and_distribution', 'waste_generated_in_operations', 'business_travel', 'employee_commuting', 'upstream_leased_assets', 'downstream_transportation_and_distribution', 'processing_of_sold_products', 'use_of_sold_products', 'end_of_life_treatment_of_sold_products', 'downstream_leased_assets', 'franchises', 'investments')",
+            name="ck_scope3_assessment_category",
+        ),
+        CheckConstraint(
+            "applicability IN ('not_assessed', 'relevant', 'not_relevant')",
+            name="ck_scope3_assessment_applicability",
+        ),
+        CheckConstraint(
+            "applicability <> 'not_relevant' OR (rationale IS NOT NULL AND length(trim(rationale)) >= 20)",
+            name="ck_scope3_assessment_exclusion_rationale",
+        ),
+        Index("ix_scope3_assessment_tenant_year", "tenant_id", "reporting_year"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    reporting_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    category: Mapped[str] = mapped_column(String(64), nullable=False)
+    applicability: Mapped[str] = mapped_column(String(24), nullable=False, default="not_assessed")
+    rationale: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
+
+
 class CalculationSnapshot(Base):
     __tablename__ = "calculation_snapshots"
     __table_args__ = (Index("ix_snapshot_tenant_period", "tenant_id", "period_start", "period_end"),)
