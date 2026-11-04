@@ -31,6 +31,7 @@ class FactorResponse(BaseModel):
     numerator_unit: str
     denominator_unit: str
     activity_category: str
+    methodology: str
     geography: str
     source_name: str
     source_url: str
@@ -61,6 +62,7 @@ def list_emission_factors(
             "numerator_unit": factor.numerator_unit,
             "denominator_unit": factor.denominator_unit,
             "activity_category": factor.activity_category,
+            "methodology": factor.methodology,
             "geography": factor.geography,
             "source_name": factor.source_name,
             "source_url": factor.source_url,
@@ -102,6 +104,7 @@ def approve_factor(
         "numerator_unit": factor.numerator_unit,
         "denominator_unit": factor.denominator_unit,
         "activity_category": factor.activity_category,
+        "methodology": factor.methodology,
         "geography": factor.geography,
         "source_name": factor.source_name,
         "source_url": factor.source_url,
