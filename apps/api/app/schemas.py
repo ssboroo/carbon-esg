@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 from typing import Literal
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
 
@@ -100,3 +102,5 @@ class InventoryCalculationResult(BaseModel):
     total_tco2e: Decimal
     records: list[RecordCalculationResult]
     methodology: str = "activity_data × emission_factor_kgCO2e_per_unit; kgCO2e / 1000 = tCO2e"
+    snapshot_id: UUID | None = None
+    review_status: Literal["preview", "pending_review"] = "preview"
