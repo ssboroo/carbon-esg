@@ -13,6 +13,7 @@ from .persistence import persist_inventory_calculation
 from .approved_calculation import calculate_and_persist_approved
 from .schemas import ApprovedInventoryCalculationRequest, InventoryCalculationRequest, InventoryCalculationResult
 from .factor_routes import router as emission_factor_router
+from .activity_routes import router as activity_record_router
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
@@ -197,3 +198,4 @@ from .legal_routes import router as legal_registry_router
 
 app.include_router(legal_registry_router)
 app.include_router(emission_factor_router)
+app.include_router(activity_record_router)
