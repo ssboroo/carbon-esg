@@ -30,6 +30,7 @@ class FactorResponse(BaseModel):
     value_kgco2e: str
     numerator_unit: str
     denominator_unit: str
+    activity_category: str
     geography: str
     source_name: str
     source_url: str
@@ -59,6 +60,7 @@ def list_emission_factors(
             "value_kgco2e": str(factor.value_kgco2e),
             "numerator_unit": factor.numerator_unit,
             "denominator_unit": factor.denominator_unit,
+            "activity_category": factor.activity_category,
             "geography": factor.geography,
             "source_name": factor.source_name,
             "source_url": factor.source_url,
@@ -99,6 +101,7 @@ def approve_factor(
         "value_kgco2e": str(factor.value_kgco2e),
         "numerator_unit": factor.numerator_unit,
         "denominator_unit": factor.denominator_unit,
+        "activity_category": factor.activity_category,
         "geography": factor.geography,
         "source_name": factor.source_name,
         "source_url": factor.source_url,
