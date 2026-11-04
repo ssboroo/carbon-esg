@@ -17,6 +17,7 @@ TENANT_TABLES = (
     "evidence",
     "calculation_snapshots",
     "audit_events",
+    "scope3_category_assessments",
 )
 
 
@@ -291,7 +292,7 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0010"
+            assert revision == "20261104_0011"
     finally:
         engine.dispose()
 
