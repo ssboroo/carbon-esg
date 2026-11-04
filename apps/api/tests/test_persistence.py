@@ -20,8 +20,10 @@ from app.schemas import InventoryCalculationRequest
 from app.calculator import calculate_inventory
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+MIGRATION_DATABASE_URL = os.getenv("MIGRATION_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
-    not DATABASE_URL, reason="PostgreSQL integration DB is not configured"
+    not DATABASE_URL or not MIGRATION_DATABASE_URL,
+    reason="Runtime and migration PostgreSQL URLs are required",
 )
 
 
@@ -62,28 +64,25 @@ def make_request():
 
 
 def test_persist_calculation_records_provenance_snapshot_and_audit_atomically():
+    seed_engine = create_engine(MIGRATION_DATABASE_URL)
     engine = create_engine(DATABASE_URL)
     tenant_id, user_id = uuid4(), uuid4()
     try:
-        with Session(engine) as db:
-            with db.begin():
-                db.execute(
-                    text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
-                    {"tenant": str(tenant_id)},
-                )
-                db.add(Tenant(
+        with Session(seed_engine) as seed:
+            with seed.begin():
+                seed.add(Tenant(
                     id=tenant_id,
                     legal_name="Persistence Integration Test",
                     country_code="MN",
                 ))
-                db.add(User(
+                seed.add(User(
                     id=user_id,
                     email=f"{user_id}@persistence-test.invalid",
                     display_name="Persistence Test User",
                     is_active=True,
                 ))
-                db.flush()
 
+        with Session(engine) as db:
             db.execute(
                 text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
                 {"tenant": str(tenant_id)},
@@ -160,5 +159,20 @@ def test_persist_calculation_records_provenance_snapshot_and_audit_atomically():
                     request_id="integration-persist-conflict",
                 )
             db.rollback()
+
+        # Verify snapshot immutability independently of runtime-role privileges.
+        with pytest.raises(DBAPIError):
+            with seed_engine.begin() as owner:
+                owner.execute(
+                    text("UPDATE calculation_snapshots SET engine_version = 'tampered' WHERE id = :id"),
+                    {"id": snapshot_id},
+                )
+        with pytest.raises(DBAPIError):
+            with seed_engine.begin() as owner:
+                owner.execute(
+                    text("DELETE FROM calculation_snapshots WHERE id = :id"),
+                    {"id": snapshot_id},
+                )
     finally:
         engine.dispose()
+        seed_engine.dispose()

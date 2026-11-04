@@ -33,7 +33,10 @@ jobs:
       run:
         working-directory: apps/api
     env:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/carbon_esg
+      DATABASE_URL: postgresql+psycopg://carbon_esg_app:ci-test-password@localhost:5432/carbon_esg
+      MIGRATION_DATABASE_URL: postgresql+psycopg://carbon_esg_migrator:ci-migrator-password@localhost:5432/carbon_esg
+      MIGRATION_PSQL_URL: postgresql://carbon_esg_migrator:ci-migrator-password@localhost:5432/carbon_esg
+      POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/carbon_esg
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -44,8 +47,15 @@ jobs:
           cache-dependency-path: apps/api/requirements-dev.txt
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
-      - name: Apply PostgreSQL migrations
+      - name: Bootstrap isolated database roles
+        run: |
+          psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -f scripts/bootstrap_database_roles.sql
+          psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "ALTER ROLE carbon_esg_migrator WITH PASSWORD 'ci-migrator-password'"
+          psql "$POSTGRES_ADMIN_URL" -v ON_ERROR_STOP=1 -c "ALTER ROLE carbon_esg_app WITH PASSWORD 'ci-test-password'"
+      - name: Apply PostgreSQL migrations as migrator
         run: alembic upgrade head
+      - name: Grant least-privilege application access
+        run: psql "$MIGRATION_PSQL_URL" -v ON_ERROR_STOP=1 -f scripts/bootstrap_runtime_role.sql
       - name: Verify database schema and security controls
         run: python -m pytest tests/test_postgres_migration.py -q
       - name: Run API tests

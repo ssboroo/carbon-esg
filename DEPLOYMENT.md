@@ -38,7 +38,7 @@ cd apps/api
 docker build -t carbon-esg-api .
 docker run --rm -p 8000:8000 \
   -e ENVIRONMENT=production \
-  -e DATABASE_URL='postgresql+psycopg://...' \
+  -e DATABASE_URL='postgresql+psycopg://carbon_esg_app:STRONG_PASSWORD@db.example.com/carbon_esg' \
   -e CORS_ORIGINS=https://app.example.com \
   -e OIDC_ISSUER=https://identity.example.com/ \
   -e OIDC_AUDIENCE=carbon-esg-api \
@@ -46,7 +46,7 @@ docker run --rm -p 8000:8000 \
   carbon-esg-api
 ```
 
-Configure `CORS_ORIGINS` as a comma-separated allow-list of exact trusted web origins. Do not use a wildcard. Configure the API issuer, audience, and JWKS URL to match the OIDC provider and API resource registration.
+Configure `CORS_ORIGINS` as a comma-separated allow-list of exact trusted web origins. Do not use a wildcard. Configure the API issuer, audience, and JWKS URL to match the OIDC provider and API resource registration. First, execute `apps/api/scripts/bootstrap_database_roles.sql` as the PostgreSQL administrator and set independent strong passwords for `carbon_esg_migrator` and `carbon_esg_app`. Run Alembic migrations separately with `MIGRATION_DATABASE_URL=postgresql+psycopg://carbon_esg_migrator:...@db.example.com/carbon_esg alembic upgrade head`. After migrations, execute `psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/bootstrap_runtime_role.sql` as `carbon_esg_migrator`. Never pass either privileged credential into the running API container. The migration role is a separate, tightly controlled `BYPASSRLS` role used only for schema migrations and cross-tenant maintenance; it is not a superuser. The application role must remain `NOSUPERUSER`, `NOBYPASSRLS`, and must not own tenant tables. It receives read access, inserts only for required workflows, and column-level updates only for factor approval; it cannot delete audit records, snapshots, or factors, nor create tenants or memberships. The API runtime connects only as `carbon_esg_app`; Alembic uses `MIGRATION_DATABASE_URL`.
 
 ## First-user and organization provisioning
 

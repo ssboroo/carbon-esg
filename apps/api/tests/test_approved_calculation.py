@@ -14,8 +14,10 @@ from app.models import ActivityRecord, AuditEvent, CalculationSnapshot, Emission
 from app.schemas import ApprovedInventoryCalculationRequest
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+MIGRATION_DATABASE_URL = os.getenv("MIGRATION_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
-    not DATABASE_URL, reason="PostgreSQL integration DB is not configured"
+    not DATABASE_URL or not MIGRATION_DATABASE_URL,
+    reason="Runtime and migration PostgreSQL URLs are required",
 )
 
 
@@ -36,28 +38,25 @@ def _payload(factor_id, basis="location_based"):
 
 
 def test_calculation_uses_only_approved_tenant_factor_and_persists_provenance():
+    seed_engine = create_engine(MIGRATION_DATABASE_URL)
     engine = create_engine(DATABASE_URL)
     tenant_id, user_id, approved_id, pending_id = uuid4(), uuid4(), uuid4(), uuid4()
     try:
-        with Session(engine) as db:
-            with db.begin():
-                db.execute(
-                    text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
-                    {"tenant": str(tenant_id)},
-                )
-                db.add(Tenant(
+        with Session(seed_engine) as seed:
+            with seed.begin():
+                seed.add(Tenant(
                     id=tenant_id,
                     legal_name="Approved Factor Calculation Test",
                     country_code="MN",
                 ))
-                db.add(User(
+                seed.add(User(
                     id=user_id,
                     email=f"{user_id}@approved-factor.invalid",
                     display_name="Approved Factor Test User",
                     is_active=True,
                 ))
-                db.flush()
-                db.add_all([
+                seed.flush()
+                seed.add_all([
                     EmissionFactor(
                         id=approved_id,
                         tenant_id=tenant_id,
@@ -99,6 +98,7 @@ def test_calculation_uses_only_approved_tenant_factor_and_persists_provenance():
                     ),
                 ])
 
+        with Session(engine) as db:
             db.execute(
                 text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
                 {"tenant": str(tenant_id)},
@@ -167,3 +167,4 @@ def test_calculation_uses_only_approved_tenant_factor_and_persists_provenance():
             assert any(event.action == "activity_record.created_from_approved_factor" for event in events)
     finally:
         engine.dispose()
+        seed_engine.dispose()
