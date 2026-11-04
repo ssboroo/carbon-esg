@@ -51,6 +51,7 @@ def persist_inventory_calculation(
     for item in request.records:
         factor_identity = {
             "category": item.category,
+            "methodology": item.scope_2_basis or "scope1_activity_factor",
             "unit": item.factor_unit.strip().lower(),
             "source": item.factor_source_name.strip(),
             "url": str(item.factor_source_url),
