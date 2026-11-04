@@ -15,9 +15,25 @@ on:
 jobs:
   api-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: carbon_esg
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d carbon_esg"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: apps/api
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/carbon_esg
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -28,6 +44,10 @@ jobs:
           cache-dependency-path: apps/api/requirements-dev.txt
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
+      - name: Apply PostgreSQL migrations
+        run: alembic upgrade head
+      - name: Verify database schema and security controls
+        run: python -m pytest tests/test_postgres_migration.py -q
       - name: Run API tests
         run: python -m pytest -q
 
