@@ -21,10 +21,11 @@ Configure the OIDC provider as a public SPA client:
 - Redirect URI: `https://app.example.com/auth/callback`.
 - Post-logout redirect URI: `https://app.example.com/`.
 - Allowed web origin: `https://app.example.com`.
-- Scopes: `openid profile email`.
+- Scopes: `openid profile email` plus the provider-specific API access scope configured as `NEXT_PUBLIC_OIDC_API_SCOPE`.
+- Request the API audience configured as `NEXT_PUBLIC_OIDC_AUDIENCE`; it must match the API `OIDC_AUDIENCE` claim.
 - Do not configure or ship a client secret to the browser.
 
-The browser stores OIDC state and user session data in session storage. Silent refresh and refresh-token issuance are intentionally disabled in this foundation; expired sessions require re-authentication. Use a short access-token lifetime and deploy a strict Content Security Policy before production.
+The browser stores OIDC state and user session data in session storage. App sign-out removes the local browser session; it does not necessarily terminate the identity provider SSO session. Silent refresh and refresh-token issuance are intentionally disabled in this foundation; expired sessions require re-authentication. Use a short access-token lifetime and deploy a strict Content Security Policy before production.
 
 The API URL, OIDC authority, and OIDC client ID are public browser configuration. Never put credentials, database URLs, signing keys, or private tokens in `NEXT_PUBLIC_*` variables.
 
