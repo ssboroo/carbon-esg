@@ -21,7 +21,9 @@ GRANT USAGE ON SCHEMA public TO carbon_esg_app;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO carbon_esg_app;
 
 -- Only workflows that currently need writes receive them.
-GRANT INSERT, UPDATE ON emission_factors TO carbon_esg_app;
+GRANT INSERT ON emission_factors TO carbon_esg_app;
+GRANT UPDATE (approval_status, approved_by, approved_at, approval_note)
+    ON emission_factors TO carbon_esg_app;
 GRANT INSERT ON activity_records, evidence, calculation_snapshots, audit_events TO carbon_esg_app;
 
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO carbon_esg_app;
