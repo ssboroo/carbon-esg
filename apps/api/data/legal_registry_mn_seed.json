@@ -1,0 +1,228 @@
+{
+  "catalog_version": "0.2.0",
+  "jurisdiction": "MN",
+  "registry_owner": "Carbon ESG Legal Registry",
+  "official_primary_source": "https://legalinfo.mn/",
+  "standards_catalog": "https://estandard.gov.mn/",
+  "last_researched_on": "2026-11-04",
+  "ingestion_policy": "Discovery index only. Current consolidated legal text and amendment history must be fetched from official source, checksum verified, split into provisions, and human-reviewed before being treated as authoritative. Unverified status is never upgraded automatically.",
+  "records": [
+    {
+      "code": "MN-CLIMATE-2026",
+      "title_mn": "Уур амьсгалын өөрчлөлтийн тухай",
+      "type": "law",
+      "domain": "climate_ghg_mrv_carbon_market",
+      "status": "in_force_reported",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=17438056827492",
+      "effective_from": "2026-07-02",
+      "notes": "National climate law. Verify consolidated text and implementing regulations against Legalinfo before classifying individual obligations."
+    },
+    {
+      "code": "MN-ENV-PROTECTION",
+      "title_mn": "Байгаль орчныг хамгаалах тухай",
+      "type": "law",
+      "domain": "environment",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail/8935",
+      "notes": "Includes 2026 climate-law consequential amendments."
+    },
+    {
+      "code": "MN-EIA",
+      "title_mn": "Байгаль орчинд нөлөөлөх байдлын үнэлгээний тухай",
+      "type": "law",
+      "domain": "environmental_impact_assessment",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=77",
+      "notes": "Verify 2026 amendments and current consolidated version."
+    },
+    {
+      "code": "MN-WATER",
+      "title_mn": "Усны тухай",
+      "type": "law",
+      "domain": "water",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=103038",
+      "notes": "Water use, protection, permits and reporting obligations need applicability mapping."
+    },
+    {
+      "code": "MN-WASTE",
+      "title_mn": "Хог хаягдлын тухай",
+      "type": "law",
+      "domain": "waste_circularity",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=8666",
+      "notes": "Waste generation, classification, transfer, treatment and reporting."
+    },
+    {
+      "code": "MN-AIR",
+      "title_mn": "Агаарын тухай",
+      "type": "law",
+      "domain": "air_emissions",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail/8669",
+      "notes": "Air pollution control; distinguish regulated air pollutants from GHG inventory accounting."
+    },
+    {
+      "code": "MN-ENERGY",
+      "title_mn": "Эрчим хүчний тухай",
+      "type": "law",
+      "domain": "energy",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail/60",
+      "notes": "Energy sector and supply context."
+    },
+    {
+      "code": "MN-ENERGY-EFFICIENCY",
+      "title_mn": "Эрчим хүч хэмнэлтийн тухай",
+      "type": "law",
+      "domain": "energy_efficiency",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=11488",
+      "notes": "Energy conservation and efficient use."
+    },
+    {
+      "code": "MN-LABOUR",
+      "title_mn": "Хөдөлмөрийн тухай",
+      "type": "law",
+      "domain": "social_labour",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=16230709635751",
+      "notes": "Employment conditions, rights and employer duties."
+    },
+    {
+      "code": "MN-OHS",
+      "title_mn": "Хөдөлмөрийн аюулгүй байдал, эрүүл ахуйн тухай",
+      "type": "law",
+      "domain": "social_health_safety",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail/564",
+      "notes": "Occupational health and safety obligations."
+    },
+    {
+      "code": "MN-PRIVACY",
+      "title_mn": "Хүний хувийн мэдээлэл хамгаалах тухай",
+      "type": "law",
+      "domain": "privacy_data_protection",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=16390288615991",
+      "notes": "Applies to employee, customer and contact personal data processed by the SaaS."
+    },
+    {
+      "code": "MN-ACCOUNTING",
+      "title_mn": "Нягтлан бодох бүртгэлийн тухай",
+      "type": "law",
+      "domain": "financial_reporting",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail/11191",
+      "notes": "Accounting records and financial reporting context for ESG data controls."
+    },
+    {
+      "code": "MN-AUDIT",
+      "title_mn": "Аудитын тухай",
+      "type": "law",
+      "domain": "assurance_audit",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail/11192",
+      "notes": "Audit framework; not a substitute for GHG validation/verification accreditation rules."
+    },
+    {
+      "code": "MN-COMPANIES",
+      "title_mn": "Компанийн тухай",
+      "type": "law",
+      "domain": "governance",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=102212",
+      "notes": "Corporate governance and company reporting context."
+    },
+    {
+      "code": "MN-PUBLIC-INFO",
+      "title_mn": "Нийтийн мэдээллийн ил тод байдлын тухай",
+      "type": "law",
+      "domain": "data_governance_transparency",
+      "status": "in_force_verify_consolidated",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=16390263044601",
+      "notes": "Current principal act (2021). The 2011 predecessor is repealed; track amendments and scope."
+    },
+    {
+      "code": "MN-AIR-FEE",
+      "title_mn": "Агаарын бохирдлын төлбөрийн тухай",
+      "type": "law",
+      "domain": "air_pollution_fee",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail/30",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-WATER-FEE",
+      "title_mn": "Ус бохирдуулсны төлбөрийн тухай",
+      "type": "law",
+      "domain": "water_pollution_fee",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=8684",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-NATURAL-RESOURCE-FEE",
+      "title_mn": "Байгалийн нөөц ашигласны төлбөрийн тухай",
+      "type": "law",
+      "domain": "natural_resource_fees",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=8663&type=2",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-CHEMICALS",
+      "title_mn": "Химийн хорт болон аюултай бодисын тухай",
+      "type": "law",
+      "domain": "hazardous_chemicals",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail/526",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-FOREST",
+      "title_mn": "Ойн тухай",
+      "type": "law",
+      "domain": "forestry_land_use",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=12171",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-PROTECTED-AREAS",
+      "title_mn": "Тусгай хамгаалалттай газар нутгийн тухай",
+      "type": "law",
+      "domain": "biodiversity_land_use",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail?lawId=479&type=11",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-LAND",
+      "title_mn": "Газрын тухай",
+      "type": "law",
+      "domain": "land_use",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail/216",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-RENEWABLE-ENERGY",
+      "title_mn": "Сэргээгдэх эрчим хүчний тухай",
+      "type": "law",
+      "domain": "renewable_energy",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail/465",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    },
+    {
+      "code": "MN-URBAN-WATER",
+      "title_mn": "Хот, суурины ус хангамж, ариутгах татуургын ашиглалтын тухай",
+      "type": "law",
+      "domain": "water_wastewater",
+      "status": "needs_verification",
+      "official_url": "https://legalinfo.mn/mn/detail/531",
+      "notes": "Албан эх сурвалжийн хуудсаар олдсон. Одоогийн нэгтгэсэн эх, нэмэлт өөрчлөлт, хүчин төгөлдөр төлөвийг импортын өмнө дахин шалгана."
+    }
+  ]
+}

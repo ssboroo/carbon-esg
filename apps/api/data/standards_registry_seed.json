@@ -1,0 +1,119 @@
+{
+  "catalog_version": "0.1.0",
+  "jurisdiction": "MN+INTL",
+  "official_catalog": "https://estandard.gov.mn/",
+  "researched_on": "2026-11-04",
+  "policy": "Catalog metadata only. Standard full text may be copyrighted/licensed and must only be stored when the organization has a valid license. Distinguish adopted standards from draft consultations.",
+  "records": [
+    {
+      "code": "MNS ISO 14064-1:2015",
+      "title_mn": "Хүлэмжийн хий — Байгууллагын түвшинд ялгарал ба шингээлтийг тооцоолох, тайлагнах",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "organizational_ghg_inventory",
+      "status": "catalogued_2024_current_status_verify",
+      "source_url": "https://estandard.gov.mn/file/website/MON-CAT2024.06.06.pdf",
+      "license_required": true,
+      "notes": "2024 official catalog lists this edition; verify current 2026 validity in the live catalog."
+    },
+    {
+      "code": "MNS ISO 14064-2:2015",
+      "title_mn": "Хүлэмжийн хий — Төслийн түвшинд ялгарлыг бууруулах болон шингээлтийг нэмэгдүүлэхийг тооцох, хянах, тайлагнах",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "ghg_project_quantification",
+      "status": "catalogued_2024_current_status_verify",
+      "source_url": "https://estandard.gov.mn/file/website/MON-CAT2024.06.06.pdf",
+      "license_required": true,
+      "notes": "2024 catalog metadata; confirm exact title and current edition against official catalog."
+    },
+    {
+      "code": "MNS ISO 14064-3:2015",
+      "title_mn": "Хүлэмжийн хийн мэдүүлгийг магадлах, нотлох",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "ghg_validation_verification",
+      "status": "catalogued_2024_current_status_verify",
+      "source_url": "https://estandard.gov.mn/file/website/MON-CAT2024.06.06.pdf",
+      "license_required": true,
+      "notes": "2024 official catalog lists this edition; verify current status."
+    },
+    {
+      "code": "MNS ISO 14065:2023",
+      "title_mn": "Байгаль орчны мэдээллийн магадлагаа, нотолгооны байгууллагад тавих ерөнхий зарчим ба шаардлага",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "validation_verification_bodies",
+      "status": "catalogued_2024_current_status_verify",
+      "source_url": "https://estandard.gov.mn/file/website/MON-CAT2024.06.06.pdf",
+      "license_required": true,
+      "notes": "2024 official catalog lists this edition."
+    },
+    {
+      "code": "MNS ISO 14066:2015",
+      "title_mn": "Хүлэмжийн хийн магадлагаа болон нотолгооны багийн чадварт тавих шаардлага",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "verifier_competence",
+      "status": "catalogued_2024_current_status_verify",
+      "source_url": "https://estandard.gov.mn/file/website/MON-CAT2024.06.06.pdf",
+      "license_required": true,
+      "notes": "2024 official catalog lists this edition."
+    },
+    {
+      "code": "MNS ISO 14064-1:2025",
+      "title_mn": "Хүлэмжийн хий — Байгууллагын түвшинд ялгарал ба шингээлтийг тооцоолох, тайлагнах",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "organizational_ghg_inventory",
+      "status": "draft_public_consultation_2025",
+      "source_url": "https://estandard.gov.mn/website/news_list_table.aspx?page=3&type=2",
+      "license_required": true,
+      "notes": "Public consultation listing dated 2025-10-23; do not treat as adopted unless later approval is verified."
+    },
+    {
+      "code": "MNS ISO 14064-3:2025",
+      "title_mn": "Хүлэмжийн хийн мэдүүлгийг магадлах, нотлох",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "ghg_validation_verification",
+      "status": "draft_public_consultation_2025",
+      "source_url": "https://estandard.gov.mn/website/news_list_table.aspx?page=3&type=2",
+      "license_required": true,
+      "notes": "Public consultation listing dated 2025-10-23; do not treat as adopted unless later approval is verified."
+    },
+    {
+      "code": "MNS ISO 14040:2016",
+      "title_mn": "Байгаль орчны менежмент — Амьдралын мөчлөгийн үнэлгээ — Зарчим ба бүтэц",
+      "publisher": "Стандарт, хэмжил зүйн газар",
+      "domain": "life_cycle_assessment",
+      "status": "catalogued_2024_current_status_verify",
+      "source_url": "https://estandard.gov.mn/file/website/MON-CAT2024.06.06.pdf",
+      "license_required": true,
+      "notes": "2024 official catalog lists this edition."
+    },
+    {
+      "code": "GHG Protocol Corporate Standard",
+      "title_mn": "Байгууллагын хүлэмжийн хийн тооллогын стандарт",
+      "publisher": "GHG Protocol",
+      "domain": "organizational_ghg_inventory",
+      "status": "international_framework",
+      "source_url": "https://ghgprotocol.org/corporate-standard",
+      "license_required": false,
+      "notes": "International accounting and reporting framework; not a Mongolian statute."
+    },
+    {
+      "code": "GHG Protocol Scope 2 Guidance",
+      "title_mn": "Scope 2 Guidance",
+      "publisher": "GHG Protocol",
+      "domain": "scope_2_accounting",
+      "status": "international_framework",
+      "source_url": "https://ghgprotocol.org/scope-2-guidance",
+      "license_required": false,
+      "notes": "Location-based and market-based Scope 2 accounting guidance."
+    },
+    {
+      "code": "ISO 14064-1",
+      "title_mn": "Greenhouse gases — Part 1: Organization-level quantification and reporting",
+      "publisher": "ISO",
+      "domain": "organizational_ghg_inventory",
+      "status": "international_standard",
+      "source_url": "https://www.iso.org/standard/66453.html",
+      "license_required": true,
+      "notes": "Use licensed copy and check current edition."
+    }
+  ]
+}

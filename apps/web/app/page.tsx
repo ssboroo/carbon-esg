@@ -172,6 +172,7 @@ export default function Dashboard() {
               <Icon name={item.icon}/><span>{item.label}</span>{item.id === "activities" && recordCount > 0 && <em>{recordCount}</em>}
             </button>
           ))}
+          <a className="nav-link" href="/legal"><Icon name="file"/><span>Хууль, стандарт</span></a>
         </nav>
         <div className="sidebar-spacer"/>
         <div className="sidebar-help">
