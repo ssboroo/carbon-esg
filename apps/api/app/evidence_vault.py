@@ -202,7 +202,6 @@ def upload_evidence(
             "tenant-id": str(tenant_id),
             "evidence-id": str(evidence_id),
         },
-        "Tagging": f"tenant_id={tenant_id}&evidence_id={evidence_id}",
     }
     encryption = os.getenv("S3_SERVER_SIDE_ENCRYPTION", "AES256").strip()
     if encryption:
