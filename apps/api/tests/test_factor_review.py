@@ -14,24 +14,23 @@ from app.factor_review import approve_emission_factor
 from app.models import AuditEvent, EmissionFactor, Tenant, User
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+MIGRATION_DATABASE_URL = os.getenv("MIGRATION_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
-    not DATABASE_URL, reason="PostgreSQL integration DB is not configured"
+    not DATABASE_URL or not MIGRATION_DATABASE_URL,
+    reason="Runtime and migration PostgreSQL URLs are required",
 )
 
 
 def test_reviewer_approval_is_audited_tenant_scoped_and_immutable():
+    seed_engine = create_engine(MIGRATION_DATABASE_URL)
     engine = create_engine(DATABASE_URL)
     tenant_id, other_tenant_id, reviewer_id, factor_id = (
         uuid4(), uuid4(), uuid4(), uuid4()
     )
     try:
-        with Session(engine) as db:
-            with db.begin():
-                db.execute(
-                    text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
-                    {"tenant": str(tenant_id)},
-                )
-                db.add_all([
+        with Session(seed_engine) as seed:
+            with seed.begin():
+                seed.add_all([
                     Tenant(id=tenant_id, legal_name="Factor Review Tenant", country_code="MN"),
                     Tenant(id=other_tenant_id, legal_name="Other Tenant", country_code="MN"),
                     User(
@@ -41,8 +40,8 @@ def test_reviewer_approval_is_audited_tenant_scoped_and_immutable():
                         is_active=True,
                     ),
                 ])
-                db.flush()
-                db.add(EmissionFactor(
+                seed.flush()
+                seed.add(EmissionFactor(
                     id=factor_id,
                     tenant_id=tenant_id,
                     code="MN-GRID-2026",
@@ -61,6 +60,7 @@ def test_reviewer_approval_is_audited_tenant_scoped_and_immutable():
                     approval_status="pending",
                 ))
 
+        with Session(engine) as db:
             db.execute(
                 text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
                 {"tenant": str(tenant_id)},
@@ -118,3 +118,4 @@ def test_reviewer_approval_is_audited_tenant_scoped_and_immutable():
             db.rollback()
     finally:
         engine.dispose()
+        seed_engine.dispose()
