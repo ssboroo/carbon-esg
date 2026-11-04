@@ -299,21 +299,23 @@ export default function Dashboard() {
     }
   }
 
-  const total = scope1 + scope2;
+  const total = scope1 + scope2 + scope3;
   const recordCount = activities.length;
   const pageTitle = navItems.find((item) => item.id === active)?.label || "Ерөнхий тойм";
   const scope1Share = total > 0 ? (scope1 / total) * 100 : 0;
   const scope2Share = total > 0 ? (scope2 / total) * 100 : 0;
+  const scope3Share = total > 0 ? (scope3 / total) * 100 : 0;
 
   const chartBars = useMemo(() => {
     const hasLocationBasedScope2 = activities.some((item) => item.scope === "scope_2" && item.scope2Basis === "location_based");
     const recent = activities.slice(0, 6).reverse().map((item, index) => ({
       label: String(index + 1).padStart(2, "0"),
       scope1: item.scope === "scope_1" ? item.emissions || 0 : 0,
-      scope2: item.scope === "scope_2" && (!hasLocationBasedScope2 || item.scope2Basis === "location_based") ? item.emissions || 0 : 0
+      scope2: item.scope === "scope_2" && (!hasLocationBasedScope2 || item.scope2Basis === "location_based") ? item.emissions || 0 : 0,
+      scope3: item.scope === "scope_3" ? item.emissions || 0 : 0
     }));
-    const max = Math.max(...recent.map((item) => item.scope1 + item.scope2), 1);
-    return recent.map((item) => ({ ...item, height: Math.max(4, ((item.scope1 + item.scope2) / max) * 100) }));
+    const max = Math.max(...recent.map((item) => item.scope1 + item.scope2 + item.scope3), 1);
+    return recent.map((item) => ({ ...item, height: Math.max(4, ((item.scope1 + item.scope2 + item.scope3) / max) * 100) }));
   }, [activities]);
 
   async function submitActivity(event: FormEvent<HTMLFormElement>) {
