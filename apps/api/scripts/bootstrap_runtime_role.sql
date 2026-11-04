@@ -1,7 +1,4 @@
--- Execute as the database owner using psql.
--- Set a strong password for carbon_esg_app separately after this script.
--- Run as carbon_esg_migrator after Alembic has created the schema.
-SELECT format('GRANT CONNECT ON DATABASE %I TO carbon_esg_app', current_database()) \gexec
+-- Execute as carbon_esg_migrator after Alembic has created the schema.
 GRANT USAGE ON SCHEMA public TO carbon_esg_app;
 REVOKE INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public FROM carbon_esg_app;
 REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM carbon_esg_app;
