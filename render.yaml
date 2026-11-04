@@ -1,5 +1,5 @@
-# Render Blueprint for the free MVP preview.
-# Free API instances sleep after inactivity; do not use for customer production data.
+# Render Blueprint: free preview deployment. Free services sleep after inactivity.
+# The web app uses the Node runtime because Managed Auth needs same-origin server routes.
 services:
   - type: web
     name: carbon-esg-api
@@ -19,13 +19,20 @@ services:
           type: web
           name: carbon-esg-web
           envVarKey: RENDER_EXTERNAL_URL
+      - key: NEON_AUTH_BASE_URL
+        value: https://ep-snowy-wind-a1bftha7.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth
+      - key: NEON_AUTH_JWKS_URL
+        value: https://ep-snowy-wind-a1bftha7.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
 
   - type: web
     name: carbon-esg-web
-    runtime: static
+    runtime: node
+    plan: free
+    region: singapore
     rootDir: apps/web
     buildCommand: npm install && npm run build
-    staticPublishPath: out
+    startCommand: npm run start -- --hostname 0.0.0.0 --port $PORT
+    healthCheckPath: /
     autoDeployTrigger: checksPass
     envVars:
       - key: NEXT_PUBLIC_API_URL
@@ -33,3 +40,7 @@ services:
           type: web
           name: carbon-esg-api
           envVarKey: RENDER_EXTERNAL_URL
+      - key: NEON_AUTH_BASE_URL
+        value: https://ep-snowy-wind-a1bftha7.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth
+      - key: NEON_AUTH_COOKIE_SECRET
+        generateValue: true
