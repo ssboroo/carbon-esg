@@ -1,6 +1,6 @@
 # Deployment foundation
 
-This repository now contains multi-stage Dockerfiles for the Next.js web app and FastAPI API.
+This repository now contains multi-stage Dockerfiles for the Next.js web app and FastAPI API. The web package is pinned to Next.js 15.5.28 and React 19.2.6, including the Next.js October 2026 security release line.
 
 ## Web container
 
