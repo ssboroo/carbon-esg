@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Literal
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -36,7 +37,7 @@ CATEGORY_LABELS = {
 
 
 class Scope3AssessmentRequest(BaseModel):
-    applicability: str = Field(pattern="^(relevant|not_relevant|not_assessed)$")
+    applicability: Literal["relevant", "not_relevant", "not_assessed"]
     rationale: str | None = Field(default=None, max_length=2000)
 
     @model_validator(mode="after")
@@ -143,8 +144,7 @@ def update_scope3_category_assessment(
         },
         request_id=request_id,
     ))
-    db.commit()
-    return {
+    response_data = {
         "category": category,
         "label": CATEGORY_LABELS[category],
         "reporting_year": reporting_year,
@@ -153,3 +153,5 @@ def update_scope3_category_assessment(
         "reviewed_by": record.reviewed_by,
         "reviewed_at": record.reviewed_at.isoformat() if record.reviewed_at else None,
     }
+    db.commit()
+    return response_data
