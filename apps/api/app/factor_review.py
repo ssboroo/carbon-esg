@@ -40,6 +40,16 @@ def approve_emission_factor(
         raise HTTPException(status_code=409, detail="Only pending emission factors can be approved")
     if factor.activity_category in {"purchased_electricity", "purchased_heat", "purchased_steam", "purchased_cooling"} and factor.methodology not in {"location_based", "market_based", "location-based", "market-based"}:
         raise HTTPException(status_code=422, detail="Scope 2 factor must declare location-based or market-based methodology before approval")
+    scope3_categories = {
+        "purchased_goods_and_services", "capital_goods", "fuel_and_energy_related_activities",
+        "upstream_transportation_and_distribution", "waste_generated_in_operations",
+        "business_travel", "employee_commuting", "upstream_leased_assets",
+        "downstream_transportation_and_distribution", "processing_of_sold_products",
+        "use_of_sold_products", "end_of_life_treatment_of_sold_products",
+        "downstream_leased_assets", "franchises", "investments",
+    }
+    if factor.activity_category in scope3_categories and factor.methodology != "scope3_activity_factor":
+        raise HTTPException(status_code=422, detail="Scope 3 factor must declare the Scope 3 activity methodology before approval")
 
     before_state = {
         "approval_status": factor.approval_status,
