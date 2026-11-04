@@ -188,6 +188,8 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
                   has_table_privilege('carbon_esg_app', 'public.emission_factors', 'DELETE') AS factor_delete,
                   has_column_privilege('carbon_esg_app', 'public.emission_factors', 'value_kgco2e', 'UPDATE') AS factor_value_update,
                   has_column_privilege('carbon_esg_app', 'public.emission_factors', 'approval_status', 'UPDATE') AS factor_approval_update,
+                  has_column_privilege('carbon_esg_app', 'public.emission_factors', 'approved_by', 'INSERT') AS factor_reviewer_insert,
+                  has_column_privilege('carbon_esg_app', 'public.emission_factors', 'approval_status', 'INSERT') AS factor_status_insert,
                   has_table_privilege('carbon_esg_app', 'public.calculation_snapshots', 'UPDATE') AS snapshot_update,
                   has_table_privilege('carbon_esg_app', 'public.audit_events', 'DELETE') AS audit_delete,
                   has_table_privilege('carbon_esg_app', 'public.activity_records', 'INSERT') AS activity_insert,
@@ -198,6 +200,8 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
             assert privileges.factor_delete is False
             assert privileges.factor_value_update is False
             assert privileges.factor_approval_update is True
+            assert privileges.factor_reviewer_insert is False
+            assert privileges.factor_status_insert is True
             assert privileges.snapshot_update is False
             assert privileges.audit_delete is False
             assert privileges.activity_insert is True
@@ -270,7 +274,7 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0008"
+            assert revision == "20261104_0009"
     finally:
         engine.dispose()
 
