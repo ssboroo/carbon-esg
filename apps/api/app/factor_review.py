@@ -50,6 +50,11 @@ def approve_emission_factor(
         "source_year": factor.source_year,
         "value_kgco2e": str(factor.value_kgco2e),
         "denominator_unit": factor.denominator_unit,
+        "activity_category": factor.activity_category,
+        "geography": factor.geography,
+        "methodology": factor.methodology,
+        "valid_from": factor.valid_from.isoformat(),
+        "valid_to": factor.valid_to.isoformat() if factor.valid_to else None,
     }
     now = datetime.now(timezone.utc)
     factor.approval_status = "approved"
