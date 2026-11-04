@@ -14,6 +14,8 @@ from .approved_calculation import calculate_and_persist_approved
 from .schemas import ApprovedInventoryCalculationRequest, InventoryCalculationRequest, InventoryCalculationResult
 from .factor_routes import router as emission_factor_router
 from .activity_routes import router as activity_record_router
+from .evidence_routes import router as evidence_router
+from .evidence_vault import check_evidence_dependencies
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
 IS_PRODUCTION = ENVIRONMENT == "production"
@@ -35,6 +37,8 @@ if IS_PRODUCTION and not cors_origins:
     raise RuntimeError("CORS_ORIGINS must contain at least one trusted origin in production.")
 if IS_PRODUCTION and not all(os.getenv(key) for key in ("OIDC_ISSUER", "OIDC_AUDIENCE", "OIDC_JWKS_URL")):
     raise RuntimeError("OIDC_ISSUER, OIDC_AUDIENCE and OIDC_JWKS_URL are required in production.")
+if IS_PRODUCTION and not all(os.getenv(key) for key in ("S3_ENDPOINT_URL", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "CLAMAV_HOST")):
+    raise RuntimeError("Private S3 storage and ClamAV configuration are required in production.")
 
 app = FastAPI(
     title="Carbon ESG API",
@@ -93,7 +97,9 @@ def readiness_check() -> dict[str, str]:
         raise
     except SQLAlchemyError:
         raise HTTPException(status_code=503, detail="Database is not ready") from None
-    return {"status": "ready", "database": "connected", "migration": revision}
+    if IS_PRODUCTION:
+        check_evidence_dependencies()
+    return {"status": "ready", "database": "connected", "migration": revision, "evidence_storage": "ready" if IS_PRODUCTION else "not_required_in_development"}
 
 
 @app.get("/", tags=["operations"])
@@ -199,3 +205,4 @@ from .legal_routes import router as legal_registry_router
 app.include_router(legal_registry_router)
 app.include_router(emission_factor_router)
 app.include_router(activity_record_router)
+app.include_router(evidence_router)

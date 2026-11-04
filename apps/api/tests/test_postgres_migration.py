@@ -274,7 +274,7 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0009"
+            assert revision == "20261104_0010"
     finally:
         engine.dispose()
 
@@ -310,5 +310,22 @@ def test_approved_emission_factors_have_database_guard():
                 """))
             }
             assert "scope_2_basis" in activity_columns
+    finally:
+        engine.dispose()
+
+
+def test_evidence_metadata_has_database_immutability_trigger():
+    engine = create_engine(DATABASE_URL)
+    try:
+        with engine.connect() as connection:
+            trigger = connection.execute(
+                text("""
+                    SELECT count(*) FROM pg_trigger
+                    WHERE tgrelid = 'public.evidence'::regclass
+                      AND tgname = 'evidence_no_update_delete'
+                      AND NOT tgisinternal AND tgenabled <> 'D'
+                """)
+            ).scalar_one()
+            assert trigger == 1
     finally:
         engine.dispose()
