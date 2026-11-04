@@ -4,10 +4,12 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from .calculator import calculate_inventory
-from .database import engine
-from .auth import TenantContext, get_current_membership
+from .database import engine, get_db
+from .auth import TenantContext, require_roles
+from .persistence import persist_inventory_calculation
 from .schemas import InventoryCalculationRequest, InventoryCalculationResult
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
@@ -45,7 +47,7 @@ app.add_middleware(
     allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
+    allow_headers=["Content-Type", "Authorization", "X-Tenant-ID", "X-Request-ID"],
 )
 
 
@@ -87,7 +89,6 @@ def readiness_check() -> dict[str, str]:
     except HTTPException:
         raise
     except SQLAlchemyError:
-        # Do not return connection strings, SQL, or database internals.
         raise HTTPException(status_code=503, detail="Database is not ready") from None
     return {"status": "ready", "database": "connected", "migration": revision}
 
@@ -100,19 +101,50 @@ def root() -> dict[str, str]:
 @app.post(
     "/v1/calculations",
     response_model=InventoryCalculationResult,
-    summary="Calculate an auditable Scope 1 and Scope 2 inventory",
+    summary="Persist a preliminary Scope 1 and Scope 2 inventory calculation",
     tags=["calculations"],
 )
 def create_calculation(
-    request: InventoryCalculationRequest,
-    tenant: TenantContext = Depends(get_current_membership),
+    payload: InventoryCalculationRequest,
+    http_request: Request,
+    tenant: TenantContext = Depends(require_roles("owner", "admin", "manager")),
+    db: Session = Depends(get_db),
 ) -> InventoryCalculationResult:
-    # Tenant authorization is required even while this endpoint remains a stateless preview.
-    return calculate_inventory(request)
+    """Calculate deterministically and atomically persist all provenance and audit data.
+
+    Submitted emission factors remain pending human review. The response is not
+    an approved inventory or assurance-ready statement.
+    """
+    result = calculate_inventory(payload)
+    request_id = http_request.headers.get("X-Request-ID")
+    if request_id and len(request_id) > 80:
+        request_id = None
+    try:
+        snapshot_id = persist_inventory_calculation(
+            db,
+            tenant_id=tenant.tenant_id,
+            user_id=tenant.user_id,
+            request=payload,
+            result=result,
+            request_id=request_id,
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from None
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="Calculation could not be persisted; no result was committed",
+        ) from None
+
+    return result.model_copy(
+        update={"snapshot_id": snapshot_id, "review_status": "pending_review"}
+    )
 
 
 @app.get("/v1/me", tags=["identity"])
-def current_user(tenant: TenantContext = Depends(get_current_membership)):
+def current_user(tenant: TenantContext = Depends(require_roles("owner", "admin", "manager", "reviewer", "viewer"))):
     return {
         "user_id": str(tenant.user_id),
         "tenant_id": str(tenant.tenant_id),
