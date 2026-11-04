@@ -141,13 +141,15 @@ class Scope3CategoryAssessment(Base):
             "applicability <> 'not_relevant' OR (rationale IS NOT NULL AND length(trim(rationale)) >= 20)",
             name="ck_scope3_assessment_exclusion_rationale",
         ),
+        CheckConstraint("applicability = 'not_assessed' OR (reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL)", name="ck_scope3_assessment_reviewer"),
+        CheckConstraint("reporting_year BETWEEN 1900 AND 2200", name="ck_scope3_assessment_year"),
         Index("ix_scope3_assessment_tenant_year", "tenant_id", "reporting_year"),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     reporting_year: Mapped[int] = mapped_column(Integer, nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False)
-    applicability: Mapped[str] = mapped_column(String(24), nullable=False, default="not_assessed")
+    applicability: Mapped[str] = mapped_column(String(24), nullable=False, default="not_assessed", server_default="not_assessed")
     rationale: Mapped[str | None] = mapped_column(Text)
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
