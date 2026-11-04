@@ -63,6 +63,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("organization_id", "factor_code", "version", name="uq_factor_org_code_version"),
         sa.UniqueConstraint("organization_id", "id", name="uq_factor_org_id"),
         sa.CheckConstraint("factor_value >= 0", name="ck_factor_nonnegative"),
+        sa.CheckConstraint("factor_year BETWEEN 1900 AND 2200", name="ck_factor_year"),
         sa.CheckConstraint("source_url LIKE 'https://%'", name="ck_factor_https_source"),
         sa.CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_factor_scope"),
     )
@@ -79,6 +80,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.UniqueConstraint("organization_id", "id", name="uq_inventory_org_id"),
         sa.CheckConstraint("reporting_period_end >= reporting_period_start", name="ck_inventory_period"),
+        sa.CheckConstraint("status IN ('draft', 'review', 'approved')", name="ck_inventory_status"),
     )
     op.create_index("ix_inventories_org_period", "inventories", ["organization_id", "reporting_period_start", "reporting_period_end"])
     op.create_table(
@@ -99,6 +101,8 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["organization_id", "inventory_id"], ["inventories.organization_id", "inventories.id"], ondelete="CASCADE", name="fk_activity_inventory_tenant"),
         sa.ForeignKeyConstraint(["organization_id", "emission_factor_id"], ["emission_factors.organization_id", "emission_factors.id"], name="fk_activity_factor_tenant"),
         sa.CheckConstraint("activity_amount > 0", name="ck_activity_amount_positive"),
+        sa.CheckConstraint("factor_value_snapshot >= 0 AND emissions_kgco2e >= 0", name="ck_activity_emissions_nonnegative"),
+        sa.CheckConstraint("activity_unit = factor_unit_snapshot", name="ck_activity_units_match"),
         sa.CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_activity_scope"),
     )
     op.create_index("ix_activity_org_inventory", "activity_records", ["organization_id", "inventory_id"])
@@ -115,6 +119,8 @@ def upgrade() -> None:
         sa.Column("calculated_by_subject", sa.String(255), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["organization_id", "inventory_id"], ["inventories.organization_id", "inventories.id"], ondelete="CASCADE", name="fk_calculation_inventory_tenant"),
+        sa.CheckConstraint("scope_1_kgco2e >= 0 AND scope_2_kgco2e >= 0", name="ck_calculation_scopes_nonnegative"),
+        sa.CheckConstraint("total_kgco2e = scope_1_kgco2e + scope_2_kgco2e", name="ck_calculation_total_matches_scopes"),
     )
     op.create_index("ix_calculation_org_inventory_created", "calculation_runs", ["organization_id", "inventory_id", "created_at"])
     op.create_table(
