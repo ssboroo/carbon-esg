@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, ReactNode, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
+import { useAuth } from "./auth-provider";
 
 type Scope = "scope_1" | "scope_2";
 type Activity = {
@@ -16,6 +17,8 @@ type Activity = {
   year: string;
   version: string;
   emissions?: number;
+  scope2Basis?: "location_based" | "market_based" | null;
+  approvalStatus?: string;
 };
 
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
@@ -55,6 +58,7 @@ function formatNumber(value: number) {
 }
 
 export default function Dashboard() {
+  const auth = useAuth();
   const [active, setActive] = useState("overview");
   const [showForm, setShowForm] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
@@ -66,8 +70,56 @@ export default function Dashboard() {
   const [form, setForm] = useState({
     name: "", scope: "scope_2" as Scope, category: "purchased_electricity",
     amount: "", unit: "kWh", factor: "", source: "", sourceUrl: "",
-    year: "2026", version: "1.0", start: "2026-01-01", end: "2026-12-31"
+    year: "2026", version: "1.0", start: "2026-01-01", end: "2026-12-31", scope2Basis: "location_based" as "location_based" | "market_based"
   });
+
+  async function refreshActivities() {
+    if (!auth.user?.access_token || !auth.tenantId) return;
+    const response = await fetch(`${apiUrl}/v1/activity-records?limit=500`, {
+      headers: {
+        Authorization: `Bearer ${auth.user.access_token}`,
+        "X-Tenant-ID": auth.tenantId,
+      },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.detail || "Бүртгэлийн мэдээллийг уншиж чадсангүй.");
+    }
+    const rows = await response.json();
+    const mapped: Activity[] = rows.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      scope: row.scope,
+      category: row.category,
+      amount: String(row.amount),
+      unit: row.unit,
+      factor: String(row.factor_value_kgco2e),
+      source: row.factor_source_name,
+      sourceUrl: row.factor_source_url,
+      year: String(row.factor_year),
+      version: row.factor_version,
+      emissions: Number(row.emissions_tco2e),
+      scope2Basis: row.scope_2_basis,
+      approvalStatus: row.factor_approval_status,
+    }));
+    setActivities(mapped);
+    const scope1Total = mapped.filter((item) => item.scope === "scope_1").reduce((sum, item) => sum + (item.emissions || 0), 0);
+    const locationTotal = mapped.filter((item) => item.scope === "scope_2" && item.scope2Basis === "location_based").reduce((sum, item) => sum + (item.emissions || 0), 0);
+    const marketTotal = mapped.filter((item) => item.scope === "scope_2" && item.scope2Basis === "market_based").reduce((sum, item) => sum + (item.emissions || 0), 0);
+    const unclassifiedTotal = mapped.filter((item) => item.scope === "scope_2" && !item.scope2Basis).reduce((sum, item) => sum + (item.emissions || 0), 0);
+    setScope1(scope1Total);
+    setScope2(locationTotal > 0 ? locationTotal : marketTotal > 0 ? marketTotal : unclassifiedTotal);
+  }
+
+  useEffect(() => {
+    if (!auth.user || !auth.tenantId) return;
+    let active = true;
+    refreshActivities().catch((error) => {
+      if (active) setNotice(error instanceof Error ? error.message : "Өгөгдөл уншихад алдаа гарлаа.");
+    });
+    return () => { active = false; };
+  }, [auth.user, auth.tenantId]);
 
   const total = scope1 + scope2;
   const recordCount = activities.length;
@@ -92,7 +144,11 @@ export default function Dashboard() {
     try {
       const response = await fetch(`${apiUrl}/v1/calculations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${auth.user?.access_token || ""}`,
+          "X-Tenant-ID": auth.tenantId,
+        },
         body: JSON.stringify({
           reporting_period_start: form.start,
           reporting_period_end: form.end,
@@ -107,7 +163,8 @@ export default function Dashboard() {
             factor_source_name: form.source,
             factor_source_url: form.sourceUrl,
             factor_year: Number(form.year),
-            factor_version: form.version
+            factor_version: form.version,
+            ...(form.scope === "scope_2" ? { scope_2_basis: form.scope2Basis } : {})
           }]
         })
       });
@@ -116,17 +173,8 @@ export default function Dashboard() {
         throw new Error(errorBody?.detail?.[0]?.msg || errorBody?.detail || "API хүсэлтийг боловсруулахад алдаа гарлаа.");
       }
       const result = await response.json();
-      const calculated = result.records?.[0];
-      const emissions = Number(calculated?.emissions_tco2e || 0);
-      const next: Activity = {
-        id: crypto.randomUUID(), name: form.name, scope: form.scope, category: form.category,
-        amount: form.amount, unit: form.unit, factor: form.factor, source: form.source,
-        sourceUrl: form.sourceUrl, year: form.year, version: form.version, emissions
-      };
-      setActivities((current) => [next, ...current]);
-      if (form.scope === "scope_1") setScope1((current) => current + emissions);
-      else setScope2((current) => current + emissions);
-      setNotice("Тооцоолол амжилттай. Энэ дэлгэцийн түр жагсаалтад нэмэгдлээ; мэдээлэл серверт хадгалагдаагүй.");
+      await refreshActivities();
+      setNotice(`Тооцоолол хадгалагдлаа. Коэффициентийн төлөв: ${result.review_status === "pending_review" ? "хүний хяналт хүлээж байна" : "урьдчилсан"}.`);
       setShowForm(false);
       setForm((current) => ({ ...current, name: "", amount: "", factor: "", source: "", sourceUrl: "" }));
     } catch (error) {
@@ -151,6 +199,10 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   }
 
+  if (auth.loading) return <main className="auth-shell"><section className="auth-card"><div className="brand-mark">C</div><h1>Carbon ESG</h1><p>Нэвтрэлтийг шалгаж байна…</p></section></main>;
+  if (!auth.user) return <main className="auth-shell"><section className="auth-card"><div className="brand-mark">C</div><div className="eyebrow">SECURE WORKSPACE</div><h1>Carbon ESG</h1><p>Байгууллагын ESG өгөгдөлд нэвтрэхийн тулд байгууллагын нэвтрэлтийг ашиглана уу.</p><button className="button button-primary auth-button" onClick={() => void auth.signIn()} disabled={!auth.authConfigured}>OIDC-ээр нэвтрэх</button>{!auth.authConfigured && <p className="auth-error">NEXT_PUBLIC_OIDC_AUTHORITY болон NEXT_PUBLIC_OIDC_CLIENT_ID тохируулах шаардлагатай.</p>}{auth.error && <p className="auth-error">{auth.error}</p>}</section></main>;
+  if (!auth.tenantId) return <main className="auth-shell"><section className="auth-card"><div className="brand-mark">C</div><div className="eyebrow">ORGANIZATION ACCESS</div><h1>Байгууллагаа сонгоно уу</h1><p>Администратороос авсан Tenant ID-г оруулна уу. Энэ хэрэглэгч тухайн байгууллагад урьдчилан бүртгэгдсэн байх шаардлагатай.</p><label className="field">Tenant ID<input value={auth.tenantInput} onChange={(event) => auth.setTenantInput(event.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" /></label><button className="button button-primary auth-button" onClick={() => void auth.selectTenant()}>Байгууллагыг баталгаажуулах</button><button className="text-action" onClick={() => void auth.signOut()}>Гарах</button>{auth.error && <p className="auth-error">{auth.error}</p>}</section></main>;
+
   return (
     <div className="app-shell">
       {mobileNav && <button className="mobile-scrim" aria-label="Цэс хаах" onClick={() => setMobileNav(false)} />}
@@ -162,7 +214,7 @@ export default function Dashboard() {
         </div>
         <div className="workspace-switch">
           <div className="workspace-avatar">N</div>
-          <div className="workspace-copy"><strong>Nomad workspace</strong><span>Үнэгүй ажлын орчин</span></div>
+          <div className="workspace-copy"><strong>Carbon workspace</strong><span>{auth.tenantId.slice(0, 8)}…</span></div>
           <span className="workspace-chevron">⌄</span>
         </div>
         <div className="nav-label">WORKSPACE</div>
@@ -181,7 +233,7 @@ export default function Dashboard() {
           <p>Өгөгдөл бүртгэж, байгууллагын нөлөөллөө ойлгоорой.</p>
           <button onClick={() => { setActive("factors"); setMobileNav(false); }}>Аргачлалтай танилцах <Icon name="arrow" size={14}/></button>
         </div>
-        <div className="profile-row"><div className="profile-avatar">U</div><div className="profile-copy"><strong>Workspace admin</strong><span>Администратор</span></div><button aria-label="Тохиргоо" onClick={() => setActive("settings")}><Icon name="settings"/></button></div>
+        <div className="profile-row"><div className="profile-avatar">U</div><div className="profile-copy"><strong>{typeof auth.user.profile.email === "string" ? auth.user.profile.email : "Нэвтэрсэн хэрэглэгч"}</strong><span>OIDC хэрэглэгч</span></div><button aria-label="Гарах" onClick={() => void auth.signOut()}><Icon name="close"/></button></div>
       </aside>
 
       <main className="main-area">
@@ -229,13 +281,13 @@ export default function Dashboard() {
 
           {active === "factors" && <section className="panel placeholder-panel"><div className="placeholder-icon"><Icon name="leaf" size={25}/></div><h3>Ялгарлын коэффициент</h3><p>Одоогоор коэффициентын сан холбогдоогүй. Бүртгэл бүрт эх сурвалж, HTTPS холбоос, он, хувилбар бүхий коэффициентийг гараар оруулна.</p><div className="info-callout">Баталгаагүй Монголын цахилгаан, түлшний коэффициентийг системд урьдчилан оруулаагүй.</div><button className="text-action" onClick={() => setShowForm(true)}>Коэффициенттэй өгөгдөл нэмэх <Icon name="arrow" size={14}/></button></section>}
 
-          {active === "settings" && <section className="panel settings-panel"><div className="panel-heading"><div><h3>Ажлын орчны тохиргоо</h3><p>Төслийн холболт болон тайлангийн үндсэн мэдээлэл</p></div></div><div className="setting-row"><div><strong>Workspace</strong><span>Nomad workspace</span></div><span className="setting-status">Local preview</span></div><div className="setting-row"><div><strong>API endpoint</strong><span>{apiUrl}</span></div><span className="setting-status">Тохируулж болно</span></div><div className="setting-row"><div><strong>Тайлангийн валют</strong><span>MNT · Монгол төгрөг</span></div><span className="setting-status">Суурь тохиргоо</span></div><div className="setting-row"><div><strong>Өгөгдөл хадгалалт</strong><span>Энэ хувилбарт зөвхөн браузерын санах ойд түр хадгална.</span></div><span className="setting-status status-warning">DB холбогдоогүй</span></div></section>}
+          {active === "settings" && <section className="panel settings-panel"><div className="panel-heading"><div><h3>Ажлын орчны тохиргоо</h3><p>Төслийн холболт болон тайлангийн үндсэн мэдээлэл</p></div></div><div className="setting-row"><div><strong>Workspace</strong><span>Nomad workspace</span></div><span className="setting-status">Local preview</span></div><div className="setting-row"><div><strong>API endpoint</strong><span>{apiUrl}</span></div><span className="setting-status">Тохируулж болно</span></div><div className="setting-row"><div><strong>Тайлангийн валют</strong><span>MNT · Монгол төгрөг</span></div><span className="setting-status">Суурь тохиргоо</span></div><div className="setting-row"><div><strong>Өгөгдөл хадгалалт</strong><span>Бүртгэлүүд байгууллагын PostgreSQL санд хадгалагдана; баталгаажуулалтын workflow тусдаа.</span></div><span className="setting-status">Server-side DB</span></div></section>}
 
           <footer className="app-footer"><span>© 2026 Carbon ESG</span><span>Designed for a lower-carbon future <i>✳</i></span><span>Methodology · Privacy · Support</span></footer>
         </div>
       </main>
 
-      {showForm && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowForm(false); }}><section className="activity-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><div className="eyebrow">NEW ACTIVITY</div><h2 id="modal-title">Өгөгдөл бүртгэх</h2><p>Ашигласан коэффициентийн эх сурвалжийг заавал оруулна.</p></div><button className="icon-button" onClick={() => setShowForm(false)} aria-label="Хаах"><Icon name="close"/></button></div><form onSubmit={submitActivity}><div className="form-grid"><label className="field field-wide">Бүртгэлийн нэр<input required minLength={2} maxLength={160} placeholder="Жишээ: Албаны автомашины дизель түлш" value={form.name} onChange={(e)=>setForm({...form,name:e.target.value})}/></label><label className="field">Scope<select value={form.scope} onChange={(e)=>{const scope=e.target.value as Scope;setForm({...form,scope,category:scope==="scope_1"?"mobile_combustion":"purchased_electricity"});}}><option value="scope_1">Scope 1 · Шууд</option><option value="scope_2">Scope 2 · Эрчим хүч</option></select></label><label className="field">Ангилал<select value={form.category} onChange={(e)=>setForm({...form,category:e.target.value})}>{(form.scope==="scope_1"?[["stationary_combustion","Суурин шаталт"],["mobile_combustion","Тээврийн түлш"],["process","Үйлдвэрлэлийн процесс"],["fugitive","Алдагдал / хөргөлт"]]:[["purchased_electricity","Худалдан авсан цахилгаан"],["purchased_heat","Дулаан"],["purchased_steam","Уур"],["purchased_cooling","Хөргөлт"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><label className="field">Хэрэглээний хэмжээ<input required type="number" min="0.00000001" step="any" placeholder="1000" value={form.amount} onChange={(e)=>setForm({...form,amount:e.target.value})}/></label><label className="field">Нэгж<select value={form.unit} onChange={(e)=>setForm({...form,unit:e.target.value})}><option value="kWh">kWh</option><option value="litre">Литр</option><option value="m3">м³</option><option value="kg">кг</option><option value="tonne">тонн</option></select></label><label className="field">Коэффициент (kgCO₂e / нэгж)<input required type="number" min="0" step="any" placeholder="Эх сурвалжаас авна" value={form.factor} onChange={(e)=>setForm({...form,factor:e.target.value})}/></label><label className="field">Коэффициентийн он<input required type="number" min="1900" max="2200" value={form.year} onChange={(e)=>setForm({...form,year:e.target.value})}/></label><label className="field field-wide">Эх сурвалжийн нэр<input required minLength={2} placeholder="Жишээ: Албан ёсны emission factor dataset" value={form.source} onChange={(e)=>setForm({...form,source:e.target.value})}/></label><label className="field field-wide">Эх сурвалжийн HTTPS холбоос<input required type="url" pattern="https://.+" placeholder="https://..." value={form.sourceUrl} onChange={(e)=>setForm({...form,sourceUrl:e.target.value})}/></label><label className="field">Хувилбар<input required value={form.version} onChange={(e)=>setForm({...form,version:e.target.value})}/></label><label className="field">Тайлангийн хугацаа<input required type="date" value={form.start} onChange={(e)=>setForm({...form,start:e.target.value})}/></label><label className="field">Хугацааны төгсгөл<input required type="date" value={form.end} onChange={(e)=>setForm({...form,end:e.target.value})}/></label></div><div className="form-note"><Icon name="zap" size={16}/> Тооцоолол API дээр хийгдэнэ. Энэ хувилбарын үр дүн өгөгдлийн санд хадгалагдахгүй.</div><div className="modal-actions"><button type="button" className="button button-quiet" onClick={()=>setShowForm(false)}>Болих</button><button type="submit" className="button button-primary" disabled={busy}>{busy?"Тооцоолж байна…":"Тооцоолж бүртгэх"} <Icon name="arrow" size={15}/></button></div></form></section></div>}
+      {showForm && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowForm(false); }}><section className="activity-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><div className="eyebrow">NEW ACTIVITY</div><h2 id="modal-title">Өгөгдөл бүртгэх</h2><p>Ашигласан коэффициентийн эх сурвалжийг заавал оруулна.</p></div><button className="icon-button" onClick={() => setShowForm(false)} aria-label="Хаах"><Icon name="close"/></button></div><form onSubmit={submitActivity}><div className="form-grid"><label className="field field-wide">Бүртгэлийн нэр<input required minLength={2} maxLength={160} placeholder="Жишээ: Албаны автомашины дизель түлш" value={form.name} onChange={(e)=>setForm({...form,name:e.target.value})}/></label><label className="field">Scope<select value={form.scope} onChange={(e)=>{const scope=e.target.value as Scope;setForm({...form,scope,category:scope==="scope_1"?"mobile_combustion":"purchased_electricity"});}}><option value="scope_1">Scope 1 · Шууд</option><option value="scope_2">Scope 2 · Эрчим хүч</option></select></label><label className="field">Ангилал<select value={form.category} onChange={(e)=>setForm({...form,category:e.target.value})}>{(form.scope==="scope_1"?[["stationary_combustion","Суурин шаталт"],["mobile_combustion","Тээврийн түлш"],["process","Үйлдвэрлэлийн процесс"],["fugitive","Алдагдал / хөргөлт"]]:[["purchased_electricity","Худалдан авсан цахилгаан"],["purchased_heat","Дулаан"],["purchased_steam","Уур"],["purchased_cooling","Хөргөлт"]]).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><label className="field">Хэрэглээний хэмжээ<input required type="number" min="0.00000001" step="any" placeholder="1000" value={form.amount} onChange={(e)=>setForm({...form,amount:e.target.value})}/></label><label className="field">Нэгж<select value={form.unit} onChange={(e)=>setForm({...form,unit:e.target.value})}><option value="kWh">kWh</option><option value="litre">Литр</option><option value="m3">м³</option><option value="kg">кг</option><option value="tonne">тонн</option></select></label>{form.scope === "scope_2" && <label className="field">Scope 2 аргачлал<select value={form.scope2Basis} onChange={(e)=>setForm({...form,scope2Basis:e.target.value as "location_based" | "market_based"})}><option value="location_based">Location-based</option><option value="market_based">Market-based</option></select></label>}<label className="field">Коэффициент (kgCO₂e / нэгж)<input required type="number" min="0" step="any" placeholder="Эх сурвалжаас авна" value={form.factor} onChange={(e)=>setForm({...form,factor:e.target.value})}/></label><label className="field">Коэффициентийн он<input required type="number" min="1900" max="2200" value={form.year} onChange={(e)=>setForm({...form,year:e.target.value})}/></label><label className="field field-wide">Эх сурвалжийн нэр<input required minLength={2} placeholder="Жишээ: Албан ёсны emission factor dataset" value={form.source} onChange={(e)=>setForm({...form,source:e.target.value})}/></label><label className="field field-wide">Эх сурвалжийн HTTPS холбоос<input required type="url" pattern="https://.+" placeholder="https://..." value={form.sourceUrl} onChange={(e)=>setForm({...form,sourceUrl:e.target.value})}/></label><label className="field">Хувилбар<input required value={form.version} onChange={(e)=>setForm({...form,version:e.target.value})}/></label><label className="field">Тайлангийн хугацаа<input required type="date" value={form.start} onChange={(e)=>setForm({...form,start:e.target.value})}/></label><label className="field">Хугацааны төгсгөл<input required type="date" value={form.end} onChange={(e)=>setForm({...form,end:e.target.value})}/></label></div><div className="form-note"><Icon name="zap" size={16}/> Тооцоолол сервер дээр хийгдэж, activity болон snapshot өгөгдлийн санд хадгалагдана. Коэффициент хүний хяналтаар баталгаажих хүртэл pending төлөвтэй байна.</div><div className="modal-actions"><button type="button" className="button button-quiet" onClick={()=>setShowForm(false)}>Болих</button><button type="submit" className="button button-primary" disabled={busy}>{busy?"Тооцоолж байна…":"Тооцоолж бүртгэх"} <Icon name="arrow" size={15}/></button></div></form></section></div>}
     </div>
   );
 }
