@@ -138,7 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError("OIDC_AUTHORITY болон OIDC_CLIENT_ID тохируулаагүй байна.");
       return;
     }
-    await manager.signinRedirect();
+    try {
+      await manager.signinRedirect();
+    } catch {
+      setError("OIDC сервертэй холбогдож чадсангүй. Authority болон redirect URI тохиргоог шалгана уу.");
+    }
   }, []);
 
   const signOut = useCallback(async () => {
