@@ -69,7 +69,7 @@ export default function LegalRegistryPage() {
                   <div style={{ marginTop: 5, fontSize: 14, fontWeight: 700, lineHeight: 1.5 }}>{row.title}</div>
                   <div style={{ marginTop: 6, fontSize: 11, color: "#87958c" }}>Төлөв: {row.status}</div>
                 </div>
-                <a href={row.source_url} target="_blank" rel="noreferrer" style={{ color: "#1c8158", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>Албан эх сурвалж ↗</a>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>{tab === "laws" && <a href={api + "/v1/legal/acts/" + row.id + "/text"} target="_blank" rel="noreferrer" style={{ color: "#1c8158", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>Бүтэн эх ↗</a>}<a href={row.source_url} target="_blank" rel="noreferrer" style={{ color: "#1c8158", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>Албан эх сурвалж ↗</a></div>
               </article>)}
             </div>}
         </section>
