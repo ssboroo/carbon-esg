@@ -62,6 +62,9 @@ def ingest_consolidated_act(
         raise ValueError("Full legal text is required")
     if not provisions:
         raise ValueError("At least one structured provision is required")
+    for item in provisions:
+        if not item.get("provision_code") or not item.get("full_text", "").strip():
+            raise ValueError("Every provision requires a code and full text")
 
     act = db.scalar(select(LegalAct).where(
         LegalAct.jurisdiction == "MN",
@@ -113,6 +116,8 @@ def ingest_consolidated_act(
     for item in provisions:
         parent_code = item.get("parent_code")
         parent_id = ids.get(parent_code) if parent_code else None
+        if parent_code and parent_id is None:
+            raise ValueError("Parent article must be imported before its clause")
         row = LegalProvision(
             legal_act_version_id=version.id,
             parent_provision_id=parent_id,
