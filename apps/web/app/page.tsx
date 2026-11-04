@@ -76,14 +76,13 @@ export default function Dashboard() {
   const scope2Share = total > 0 ? (scope2 / total) * 100 : 0;
 
   const chartBars = useMemo(() => {
-    const buckets = Array.from({ length: 6 }, (_, i) => ({ label: ["I", "II", "III", "IV", "V", "VI"][i], scope1: 0, scope2: 0 }));
-    activities.forEach((item, index) => {
-      const bucket = buckets[index % buckets.length];
-      if (item.scope === "scope_1") bucket.scope1 += item.emissions || 0;
-      else bucket.scope2 += item.emissions || 0;
-    });
-    const max = Math.max(...buckets.map((b) => b.scope1 + b.scope2), 1);
-    return buckets.map((b) => ({ ...b, height: Math.max(4, ((b.scope1 + b.scope2) / max) * 100) }));
+    const recent = activities.slice(0, 6).reverse().map((item, index) => ({
+      label: String(index + 1).padStart(2, "0"),
+      scope1: item.scope === "scope_1" ? item.emissions || 0 : 0,
+      scope2: item.scope === "scope_2" ? item.emissions || 0 : 0
+    }));
+    const max = Math.max(...recent.map((item) => item.scope1 + item.scope2), 1);
+    return recent.map((item) => ({ ...item, height: Math.max(4, ((item.scope1 + item.scope2) / max) * 100) }));
   }, [activities]);
 
   async function submitActivity(event: FormEvent<HTMLFormElement>) {
@@ -213,9 +212,9 @@ export default function Dashboard() {
             </section>
 
             <section className="dashboard-grid">
-              <article className="panel emissions-panel"><div className="panel-heading"><div><h3>Ялгарлын тойм</h3><p>Бүртгэсэн өгөгдлийн нийлбэр дүн</p></div><span className="panel-tag">tCO₂e</span></div>
+              <article className="panel emissions-panel"><div className="panel-heading"><div><h3>Ялгарлын тойм</h3><p>Сүүлийн 6 бүртгэлийн ялгарлын хэмжээ</p></div><span className="panel-tag">tCO₂e</span></div>
                 {recordCount === 0 ? <div className="chart-empty"><div className="empty-chart-icon"><Icon name="layers" size={22}/></div><strong>Одоогоор өгөгдөл алга</strong><p>Эхний хэрэглээгээ бүртгэхэд график автоматаар шинэчлэгдэнэ.</p><button className="text-action" onClick={() => setShowForm(true)}>Өгөгдөл бүртгэх <Icon name="arrow" size={14}/></button></div> : <div className="chart-area"><div className="chart-y"><span>{formatNumber(Math.max(...chartBars.map(b=>b.scope1 + b.scope2)))}</span><span>0</span></div><div className="chart-bars">{chartBars.map((bar) => <div className="chart-column" key={bar.label}><div className="bar-track"><div className="bar-stack" style={{height: `${bar.height}%`}}><i className="bar-fill-s2" style={{height: `${bar.scope2 / Math.max(bar.scope1 + bar.scope2, 0.000001) * 100}%`}}/><i className="bar-fill-s1" style={{height: `${bar.scope1 / Math.max(bar.scope1 + bar.scope2, 0.000001) * 100}%`}}/></div></div><span>{bar.label}</span></div>)}</div></div>}
-                <div className="chart-legend"><span><i className="legend-dot green-dot"/> Scope 1</span><span><i className="legend-dot blue-dot"/> Scope 2</span><small>Бүртгэлийн дарааллаар харуулна</small></div>
+                <div className="chart-legend"><span><i className="legend-dot green-dot"/> Scope 1</span><span><i className="legend-dot blue-dot"/> Scope 2</span><small>Сүүлийн 6 мөр · бүртгэлийн дарааллаар</small></div>
               </article>
               <article className="panel breakdown-panel"><div className="panel-heading"><div><h3>Scope задаргаа</h3><p>Нийт ялгарлын эзлэх хувь</p></div><button className="more-button" aria-label="Дэлгэрэнгүй">•••</button></div><div className="donut-wrap"><div className="donut" style={{background: total > 0 ? `conic-gradient(#1c8158 0 ${scope1Share}%, #8bb7d8 ${scope1Share}% 100%)` : "#e9efeb"}}><div className="donut-center"><strong>{formatNumber(total)}</strong><span>tCO₂e</span></div></div></div><div className="breakdown-rows"><div><span><i className="legend-dot green-dot"/> Scope 1</span><strong>{scope1Share.toFixed(1)}%</strong></div><div><span><i className="legend-dot blue-dot"/> Scope 2</span><strong>{scope2Share.toFixed(1)}%</strong></div></div></article>
             </section>
