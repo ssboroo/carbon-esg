@@ -51,7 +51,7 @@ def persist_inventory_calculation(
     for item in request.records:
         factor_identity = {
             "category": item.category,
-            "methodology": item.scope_2_basis or "scope1_activity_factor",
+            "methodology": item.scope_2_basis or ("scope1_activity_factor" if item.scope == "scope_1" else "scope3_activity_factor"),
             "unit": item.factor_unit.strip().lower(),
             "source": item.factor_source_name.strip(),
             "url": str(item.factor_source_url),
@@ -83,7 +83,7 @@ def persist_inventory_calculation(
                     source_url=str(item.factor_source_url),
                     source_year=item.factor_year,
                     version=item.factor_version,
-                    methodology=(item.scope_2_basis or "scope1_activity_factor"),
+                    methodology=(item.scope_2_basis or ("scope1_activity_factor" if item.scope == "scope_1" else "scope3_activity_factor")),
                     activity_category=item.category,
                     valid_from=datetime.combine(
                         request.reporting_period_start, time.min, tzinfo=timezone.utc
