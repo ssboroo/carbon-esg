@@ -1,19 +1,6 @@
 -- Execute as the database owner using psql.
 -- Set a strong password for carbon_esg_app separately after this script.
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'carbon_esg_app') THEN
-        CREATE ROLE carbon_esg_app
-            LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
-            NOINHERIT NOBYPASSRLS;
-    ELSE
-        ALTER ROLE carbon_esg_app
-            LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
-            NOINHERIT NOBYPASSRLS;
-    END IF;
-END
-$$;
-
+-- Run as carbon_esg_migrator after Alembic has created the schema.
 SELECT format('GRANT CONNECT ON DATABASE %I TO carbon_esg_app', current_database()) \gexec
 GRANT USAGE ON SCHEMA public TO carbon_esg_app;
 REVOKE INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public FROM carbon_esg_app;
