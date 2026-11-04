@@ -257,8 +257,8 @@ export default function Dashboard() {
 
   function downloadCsv() {
     const rows = [
-      ["Нэр", "Scope", "Ангилал", "Хэмжээ", "Нэгж", "kgCO2e/unit", "tCO2e", "Эх сурвалж", "Он", "Хувилбар"],
-      ...activities.map((a) => [a.name, a.scope, a.category, a.amount, a.unit, a.factor, String(a.emissions ?? 0), a.source, a.year, a.version])
+      ["Нэр", "Scope", "Ангилал", "Scope 2 basis", "Хэмжээ", "Нэгж", "kgCO2e/unit", "tCO2e", "Эх сурвалж", "Он", "Хувилбар", "Factor approval"],
+      ...activities.map((a) => [a.name, a.scope, a.category, a.scope2Basis || "", a.amount, a.unit, a.factor, String(a.emissions ?? 0), a.source, a.year, a.version, a.approvalStatus || "pending"])
     ];
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
@@ -271,7 +271,7 @@ export default function Dashboard() {
   }
 
   if (auth.loading) return <main className="auth-shell"><section className="auth-card"><div className="brand-mark">C</div><h1>Carbon ESG</h1><p>Нэвтрэлтийг шалгаж байна…</p></section></main>;
-  if (!auth.user) return <main className="auth-shell"><section className="auth-card"><div className="brand-mark">C</div><div className="eyebrow">SECURE WORKSPACE</div><h1>Carbon ESG</h1><p>Байгууллагын ESG өгөгдөлд нэвтрэхийн тулд байгууллагын нэвтрэлтийг ашиглана уу.</p><button className="button button-primary auth-button" onClick={() => void auth.signIn()} disabled={!auth.authConfigured}>OIDC-ээр нэвтрэх</button>{!auth.authConfigured && <p className="auth-error">NEXT_PUBLIC_OIDC_AUTHORITY болон NEXT_PUBLIC_OIDC_CLIENT_ID тохируулах шаардлагатай.</p>}{auth.error && <p className="auth-error">{auth.error}</p>}</section></main>;
+  if (!auth.user) return <main className="auth-shell"><section className="auth-card"><div className="brand-mark">C</div><div className="eyebrow">SECURE WORKSPACE</div><h1>Carbon ESG</h1><p>Байгууллагын ESG өгөгдөлд нэвтрэхийн тулд байгууллагын нэвтрэлтийг ашиглана уу.</p><button className="button button-primary auth-button" onClick={() => void auth.signIn()} disabled={!auth.authConfigured}>OIDC-ээр нэвтрэх</button>{!auth.authConfigured && <p className="auth-error">NEXT_PUBLIC_OIDC_AUTHORITY, NEXT_PUBLIC_OIDC_CLIENT_ID болон NEXT_PUBLIC_OIDC_AUDIENCE тохируулах шаардлагатай.</p>}{auth.error && <p className="auth-error">{auth.error}</p>}</section></main>;
   if (!auth.tenantId) return <main className="auth-shell"><section className="auth-card"><div className="brand-mark">C</div><div className="eyebrow">ORGANIZATION ACCESS</div><h1>Байгууллагаа сонгоно уу</h1><p>Администратороос авсан Tenant ID-г оруулна уу. Энэ хэрэглэгч тухайн байгууллагад урьдчилан бүртгэгдсэн байх шаардлагатай.</p><label className="field">Tenant ID<input value={auth.tenantInput} onChange={(event) => auth.setTenantInput(event.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autoComplete="off" /></label><button className="button button-primary auth-button" onClick={() => void auth.selectTenant()}>Байгууллагыг баталгаажуулах</button><button className="text-action" onClick={() => void auth.signOut()}>Гарах</button>{auth.error && <p className="auth-error">{auth.error}</p>}</section></main>;
 
   return (
