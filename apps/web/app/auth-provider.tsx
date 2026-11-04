@@ -19,6 +19,8 @@ import {
 const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const authority = process.env.NEXT_PUBLIC_OIDC_AUTHORITY || "";
 const clientId = process.env.NEXT_PUBLIC_OIDC_CLIENT_ID || "";
+const apiScope = process.env.NEXT_PUBLIC_OIDC_API_SCOPE || "";
+const apiAudience = process.env.NEXT_PUBLIC_OIDC_AUDIENCE || "";
 
 let userManager: UserManager | null = null;
 
@@ -32,7 +34,8 @@ export function getUserManager(): UserManager | null {
       redirect_uri: `${window.location.origin}/auth/callback`,
       post_logout_redirect_uri: `${window.location.origin}/`,
       response_type: "code",
-      scope: "openid profile email",
+      scope: ["openid", "profile", "email", apiScope].filter(Boolean).join(" "),
+      ...(apiAudience ? { extraQueryParams: { audience: apiAudience } } : {}),
       userStore: store,
       stateStore: store,
       automaticSilentRenew: false,
