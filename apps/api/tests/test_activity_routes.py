@@ -13,34 +13,33 @@ from app.auth import TenantContext
 from app.models import ActivityRecord, EmissionFactor, Tenant, User
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+MIGRATION_DATABASE_URL = os.getenv("MIGRATION_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
-    not DATABASE_URL, reason="PostgreSQL integration DB is not configured"
+    not DATABASE_URL or not MIGRATION_DATABASE_URL,
+    reason="Runtime and migration PostgreSQL URLs are required",
 )
 
 
 def test_activity_history_returns_persisted_factor_provenance_for_current_tenant():
+    seed_engine = create_engine(MIGRATION_DATABASE_URL)
     engine = create_engine(DATABASE_URL)
     tenant_id, user_id, factor_id, activity_id = uuid4(), uuid4(), uuid4(), uuid4()
     try:
-        with Session(engine) as db:
-            with db.begin():
-                db.execute(
-                    text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
-                    {"tenant": str(tenant_id)},
-                )
-                db.add(Tenant(
+        with Session(seed_engine) as seed:
+            with seed.begin():
+                seed.add(Tenant(
                     id=tenant_id,
                     legal_name="Activity API Tenant",
                     country_code="MN",
                 ))
-                db.add(User(
+                seed.add(User(
                     id=user_id,
                     email=f"{user_id}@activity-api.invalid",
                     display_name="Activity API User",
                     is_active=True,
                 ))
-                db.flush()
-                db.add(EmissionFactor(
+                seed.flush()
+                seed.add(EmissionFactor(
                     id=factor_id,
                     tenant_id=tenant_id,
                     code="MN-DIESEL-2026",
@@ -58,8 +57,8 @@ def test_activity_history_returns_persisted_factor_provenance_for_current_tenant
                     valid_from=datetime(2026, 1, 1, tzinfo=timezone.utc),
                     approval_status="pending",
                 ))
-                db.flush()
-                db.add(ActivityRecord(
+                seed.flush()
+                seed.add(ActivityRecord(
                     id=activity_id,
                     tenant_id=tenant_id,
                     created_by=user_id,
@@ -74,6 +73,7 @@ def test_activity_history_returns_persisted_factor_provenance_for_current_tenant
                     data_quality="unreviewed",
                 ))
 
+        with Session(engine) as db:
             db.execute(
                 text("SELECT set_config('app.current_tenant_id', :tenant, true)"),
                 {"tenant": str(tenant_id)},
@@ -93,3 +93,4 @@ def test_activity_history_returns_persisted_factor_provenance_for_current_tenant
             assert rows[0]["emissions_tco2e"] == Decimal("0.268000")
     finally:
         engine.dispose()
+        seed_engine.dispose()
