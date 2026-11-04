@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth/server";
 import { ApiIdentityStatus } from "./status";
-import { SignOutButton } from "./sign-out";
+import { signOut } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function WorkspacePage() {
     <main className="dashboard-shell">
       <header className="dashboard-header">
         <div><div className="brand">CARBON ESG</div><p>Байгууллагын нүүрстөрөгчийн бүртгэл</p></div>
-        <SignOutButton />
+        <form action={signOut}><button className="button-secondary" type="submit">Гарах</button></form>
       </header>
       <section className="welcome-card">
         <p className="eyebrow">НЭВТЭРСЭН ХЭРЭГЛЭГЧ</p>
