@@ -67,6 +67,8 @@ def resolve_approved_calculation(
             actual = _normalize_method(factor.methodology)
             if actual != expected:
                 raise HTTPException(status_code=422, detail=f"Scope 2 factor {factor.code} methodology does not match {expected}")
+        if item.scope == "scope_3" and _normalize_method(factor.methodology) != "scope3_activity_factor":
+            raise HTTPException(status_code=422, detail=f"Scope 3 factor {factor.code} must use the Scope 3 activity methodology")
 
         resolved_records.append({
             "name": item.name,
