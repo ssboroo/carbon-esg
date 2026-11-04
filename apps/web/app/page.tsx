@@ -20,6 +20,16 @@ type EmissionFactor = {
   approval_status: "pending" | "approved";
   approved_at: string | null;
 };
+type EvidenceRecord = {
+  id: string;
+  activity_id: string | null;
+  original_filename: string;
+  media_type: string;
+  size_bytes: number;
+  sha256: string;
+  scan_status: string;
+  created_at: string;
+};
 type Activity = {
   id: string;
   name: string;
@@ -44,6 +54,7 @@ const navItems = [
   { id: "activities", label: "Өгөгдөл бүртгэл", icon: "layers" },
   { id: "reports", label: "Тайлан", icon: "file" },
   { id: "factors", label: "Коэффициент", icon: "leaf" },
+  { id: "evidence", label: "Нотлох баримт", icon: "file" },
   { id: "settings", label: "Тохиргоо", icon: "settings" }
 ] as const;
 
@@ -84,6 +95,11 @@ export default function Dashboard() {
   const [factors, setFactors] = useState<EmissionFactor[]>([]);
   const [factorBusy, setFactorBusy] = useState("");
   const [factorNotes, setFactorNotes] = useState<Record<string, string>>({});
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceRecord[]>([]);
+  const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+  const [evidenceActivityId, setEvidenceActivityId] = useState("");
+  const [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [evidenceDownloadUrl, setEvidenceDownloadUrl] = useState("");
   const [scope1, setScope1] = useState(0);
   const [scope2, setScope2] = useState(0);
   const [form, setForm] = useState({
@@ -139,6 +155,81 @@ export default function Dashboard() {
     });
     return () => { active = false; };
   }, [auth.user, auth.tenantId]);
+
+  async function refreshEvidence() {
+    if (!auth.user?.access_token || !auth.tenantId) return;
+    const response = await fetch(`${apiUrl}/v1/evidence?limit=200`, {
+      headers: {
+        Authorization: `Bearer ${auth.user.access_token}`,
+        "X-Tenant-ID": auth.tenantId,
+      },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(body?.detail || "Нотлох баримтын жагсаалтыг уншиж чадсангүй.");
+    }
+    setEvidenceItems(await response.json());
+  }
+
+  useEffect(() => {
+    if (active !== "evidence" || !auth.user || !auth.tenantId) return;
+    refreshEvidence().catch((error) => setNotice(error instanceof Error ? error.message : "Нотлох баримт уншихад алдаа гарлаа."));
+  }, [active, auth.user, auth.tenantId]);
+
+  async function uploadEvidence() {
+    if (!evidenceFile || !auth.user?.access_token || !auth.tenantId) return;
+    if (evidenceFile.size > 15 * 1024 * 1024) {
+      setNotice("Файлын хэмжээ 15 MB-аас хэтэрч болохгүй.");
+      return;
+    }
+    const payload = new FormData();
+    payload.append("file", evidenceFile);
+    if (evidenceActivityId) payload.append("activity_id", evidenceActivityId);
+    setEvidenceBusy(true);
+    setNotice("");
+    setEvidenceDownloadUrl("");
+    try {
+      const response = await fetch(`${apiUrl}/v1/evidence`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${auth.user.access_token}`,
+          "X-Tenant-ID": auth.tenantId,
+        },
+        body: payload,
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.detail || "Файл байршуулахад алдаа гарлаа.");
+      setEvidenceFile(null);
+      await refreshEvidence();
+      setNotice("Файл вирусын шалгалтаар цэвэр гарч, private storage-д хадгалагдлаа.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Файл байршуулахад алдаа гарлаа.");
+    } finally {
+      setEvidenceBusy(false);
+    }
+  }
+
+  async function requestEvidenceDownload(item: EvidenceRecord) {
+    if (!auth.user?.access_token || !auth.tenantId) return;
+    setNotice("");
+    setEvidenceDownloadUrl("");
+    try {
+      const response = await fetch(`${apiUrl}/v1/evidence/${item.id}/download`, {
+        headers: {
+          Authorization: `Bearer ${auth.user.access_token}`,
+          "X-Tenant-ID": auth.tenantId,
+        },
+        cache: "no-store",
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(body?.detail || "Татах холбоос үүсгэж чадсангүй.");
+      setEvidenceDownloadUrl(body.download_url);
+      setNotice("Татах холбоос 5 минутын дараа хүчингүй болно.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Татах холбоос үүсгэж чадсангүй.");
+    }
+  }
 
   async function refreshFactors() {
     if (!auth.user?.access_token || !auth.tenantId) return;
@@ -349,6 +440,8 @@ export default function Dashboard() {
           {active === "activities" && <section className="panel activity-panel full-panel"><div className="panel-heading"><div><h3>Үйл ажиллагааны бүртгэл</h3><p>Тооцоолсон мөрүүд болон ашигласан коэффициентийн эх сурвалж</p></div><button className="button button-primary" onClick={() => setShowForm(true)}><Icon name="plus" size={16}/> Нэмэх</button></div>{recordCount ? <ActivityTable activities={activities}/> : <div className="chart-empty"><div className="empty-chart-icon"><Icon name="layers" size={22}/></div><strong>Бүртгэл эхлээгүй байна</strong><p>Түлш эсвэл цахилгааны хэрэглээгээ нэмнэ үү.</p><button className="button button-primary" onClick={() => setShowForm(true)}>Эхний бүртгэл нэмэх</button></div>}</section>}
 
           {active === "reports" && <section className="panel placeholder-panel"><div className="placeholder-icon"><Icon name="file" size={25}/></div><h3>Тайлангийн төв</h3><p>Одоогийн бүртгэлүүдээ CSV хэлбэрээр экспортлох боломжтой. PDF болон GHG Protocol тайлангийн загвар дараагийн хөгжүүлэлтээр нэмэгдэнэ.</p><button className="button button-primary" onClick={downloadCsv} disabled={!recordCount}><Icon name="download" size={16}/> CSV татах</button></section>}
+
+          {active === "evidence" && <section className="panel evidence-panel"><div className="panel-heading"><div><h3>Нотлох баримтын сан</h3><p>Файлууд вирусын шалгалтаар цэвэр гарсны дараа байгууллагын private storage-д хадгалагдана.</p></div><button className="button button-quiet" onClick={() => void refreshEvidence()}>Шинэчлэх</button></div><div className="evidence-upload"><div className="evidence-upload-copy"><strong>Нотлох баримт нэмэх</strong><span>PDF, PNG, JPEG, CSV, XLSX · хамгийн ихдээ 15 MB</span></div><label className="field">Файл сонгох<input key={evidenceFile?.name || "empty"} type="file" accept=".pdf,.png,.jpg,.jpeg,.csv,.xlsx,application/pdf,image/png,image/jpeg,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => { const selected = event.target.files?.[0] || null; setEvidenceFile(selected); setEvidenceDownloadUrl(""); if (selected && selected.size > 15 * 1024 * 1024) setNotice("Файлын хэмжээ 15 MB-аас хэтэрч болохгүй."); }}/></label><label className="field">Холбох үйл ажиллагаа (сонголтоор)<select value={evidenceActivityId} onChange={(event) => setEvidenceActivityId(event.target.value)}><option value="">Холбохгүй</option>{activities.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="evidence-upload-actions">{evidenceFile && <span>{evidenceFile.name} · {(evidenceFile.size / 1024 / 1024).toFixed(2)} MB</span>}<button className="button button-primary" disabled={!evidenceFile || evidenceBusy || !["owner","admin","manager"].includes(auth.role)} onClick={() => void uploadEvidence()}>{evidenceBusy ? "Шалгаж байна…" : "Аюулгүй байршуулах"} <Icon name="arrow" size={14}/></button></div>{!["owner","admin","manager"].includes(auth.role) && <p className="factor-permission">Таны эрх файл байршуулах боломжгүй.</p>}</div>{evidenceDownloadUrl && <div className="evidence-download"><Icon name="check" size={16}/><span>Түр холбоос бэлэн:</span><a href={evidenceDownloadUrl} target="_blank" rel="noreferrer">Файлыг татах ↗</a></div>}<div className="panel-heading evidence-list-heading"><div><h3>Хадгалсан файлууд</h3><p>{evidenceItems.length} бүртгэл</p></div></div>{evidenceItems.length === 0 ? <div className="chart-empty"><div className="empty-chart-icon"><Icon name="file" size={22}/></div><strong>Нотлох баримт хараахан алга</strong><p>Файлаа нэмэхэд SHA-256 hash болон вирусын шалгалтын үр дүн бүртгэгдэнэ.</p></div> : <div className="evidence-list">{evidenceItems.map((item) => <article className="evidence-card" key={item.id}><div className="evidence-icon"><Icon name="file" size={19}/></div><div className="evidence-info"><strong>{item.original_filename}</strong><small>{item.media_type} · {(item.size_bytes / 1024).toFixed(1)} KB · {new Date(item.created_at).toLocaleString("mn-MN")}</small><code>SHA-256: {item.sha256}</code></div><span className="factor-status approved">Virus scan: clean</span><button className="button button-quiet" onClick={() => void requestEvidenceDownload(item)}>Татах</button></article>)}</div>}</section>}
 
           {active === "factors" && <section className="panel factor-panel"><div className="panel-heading"><div><h3>Ялгарлын коэффициентийн сан</h3><p>Pending коэффициентийг эрх бүхий reviewer эх сурвалж, он, нэгжийг шалгаж батална.</p></div><button className="button button-quiet" onClick={() => void refreshFactors()}>Шинэчлэх</button></div>{factors.length === 0 ? <div className="chart-empty"><div className="empty-chart-icon"><Icon name="leaf" size={22}/></div><strong>Коэффициент бүртгэгдээгүй байна</strong><p>Өгөгдөл тооцоолох үед ашигласан коэффициент энд pending төлөвөөр үүснэ.</p><button className="button button-primary" onClick={() => setShowForm(true)}>Өгөгдөл бүртгэх</button></div> : <div className="factor-list">{factors.map((factor) => <article className="factor-card" key={factor.id}><div className="factor-main"><div><strong>{factor.name}</strong><small>{factor.code} · {factor.activity_category} · {factor.geography}</small></div><span className={`factor-status ${factor.approval_status}`}>{factor.approval_status === "approved" ? "Батлагдсан" : "Хяналт хүлээж байна"}</span></div><div className="factor-meta"><span><b>{formatNumber(Number(factor.value_kgco2e))}</b> kgCO₂e / {factor.denominator_unit}</span><span>{factor.methodology}</span><span>{factor.source_year} · v{factor.version}</span></div><a href={factor.source_url} target="_blank" rel="noreferrer" className="factor-source">{factor.source_name} ↗</a>{factor.approval_status === "pending" && (["owner","admin","reviewer"].includes(auth.role) ? <div className="factor-review"><textarea value={factorNotes[factor.id] || ""} onChange={(event) => setFactorNotes((current) => ({ ...current, [factor.id]: event.target.value }))} placeholder="Эх сурвалж, газарзүй, он, нэгжийг хэрхэн шалгаснаа тайлбарлана уу…" rows={2}/><button className="button button-primary" disabled={factorBusy === factor.id || (factorNotes[factor.id] || "").trim().length < 10} onClick={() => void approveFactor(factor.id)}>{factorBusy === factor.id ? "Баталж байна…" : "Баталгаажуулах"}</button></div> : <p className="factor-permission">Таны эрх коэффициент баталгаажуулах боломжгүй.</p>)}</article>)}</div>}</section>}
 

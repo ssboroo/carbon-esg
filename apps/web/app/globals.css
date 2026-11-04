@@ -176,3 +176,27 @@ button:disabled{opacity:.48;cursor:not-allowed}
 .factor-review textarea:focus{outline:2px solid #d9efdf;border-color:#6eae85}
 .factor-permission{font-size:9px;color:#9a7a45;margin:12px 0 0}
 @media(max-width:560px){.factor-review{flex-direction:column;align-items:stretch}.factor-review .button{width:100%}.factor-main{flex-direction:column}}
+
+
+.evidence-panel{max-width:1050px}
+.evidence-upload{display:grid;grid-template-columns:1fr 1fr;gap:13px;padding:17px;border:1px solid #e5ede7;border-radius:12px;background:#fbfdfb;margin:18px 0 22px}
+.evidence-upload-copy{grid-column:1/-1;display:flex;flex-direction:column;gap:5px}
+.evidence-upload-copy strong{font-size:11px;color:#314a3a}
+.evidence-upload-copy span{font-size:9px;color:#8a9990}
+.evidence-upload .field{margin:0;min-width:0}
+.evidence-upload .field input,.evidence-upload .field select{width:100%;font-size:10px}
+.evidence-upload-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.evidence-upload-actions>span{font-size:9px;color:#718278;overflow-wrap:anywhere}
+.evidence-list-heading{margin-top:20px}
+.evidence-list{display:grid;gap:9px}
+.evidence-card{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid #e8eee9;border-radius:11px;background:#fff}
+.evidence-icon{width:36px;height:36px;display:grid;place-items:center;background:#edf5ef;color:#38714f;border-radius:9px;flex:none}
+.evidence-info{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.evidence-info strong{font-size:10px;color:#304638;overflow-wrap:anywhere}
+.evidence-info small{font-size:8px;color:#8b9990}
+.evidence-info code{font-size:7px;color:#8b9990;overflow-wrap:anywhere;white-space:normal}
+.evidence-card .button{flex:none}
+.evidence-download{display:flex;align-items:center;gap:8px;padding:11px 13px;background:#edf6ef;border-radius:9px;color:#2d714b;font-size:9px}
+.evidence-download span{color:#567763}
+.evidence-download a{color:#216b43;font-weight:800;text-decoration:underline}
+@media(max-width:650px){.evidence-upload{grid-template-columns:1fr}.evidence-card{align-items:flex-start;flex-wrap:wrap}.evidence-info{min-width:calc(100% - 50px)}.evidence-card .factor-status{margin-left:48px}.evidence-card .button{margin-left:auto}.evidence-upload-actions{align-items:stretch;flex-direction:column}.evidence-upload-actions .button{width:100%}}
