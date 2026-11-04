@@ -181,6 +181,28 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
             assert role.rolcanlogin is True
             assert role.owns_tenants is False
 
+            privileges = connection.execute(text("""
+                SELECT
+                  has_table_privilege('carbon_esg_app', 'public.tenants', 'INSERT') AS tenant_insert,
+                  has_table_privilege('carbon_esg_app', 'public.memberships', 'INSERT') AS membership_insert,
+                  has_table_privilege('carbon_esg_app', 'public.emission_factors', 'DELETE') AS factor_delete,
+                  has_column_privilege('carbon_esg_app', 'public.emission_factors', 'value_kgco2e', 'UPDATE') AS factor_value_update,
+                  has_column_privilege('carbon_esg_app', 'public.emission_factors', 'approval_status', 'UPDATE') AS factor_approval_update,
+                  has_table_privilege('carbon_esg_app', 'public.calculation_snapshots', 'UPDATE') AS snapshot_update,
+                  has_table_privilege('carbon_esg_app', 'public.audit_events', 'DELETE') AS audit_delete,
+                  has_table_privilege('carbon_esg_app', 'public.activity_records', 'INSERT') AS activity_insert,
+                  has_table_privilege('carbon_esg_app', 'public.audit_events', 'INSERT') AS audit_insert
+            """)).one()
+            assert privileges.tenant_insert is False
+            assert privileges.membership_insert is False
+            assert privileges.factor_delete is False
+            assert privileges.factor_value_update is False
+            assert privileges.factor_approval_update is True
+            assert privileges.snapshot_update is False
+            assert privileges.audit_delete is False
+            assert privileges.activity_insert is True
+            assert privileges.audit_insert is True
+
             connection.execute(text("SET LOCAL ROLE carbon_esg_app"))
             for table in tables:
                 assert connection.execute(
