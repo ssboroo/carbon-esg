@@ -159,6 +159,20 @@ def test_persist_calculation_records_provenance_snapshot_and_audit_atomically():
                     request_id="integration-persist-conflict",
                 )
             db.rollback()
+
+        # Verify snapshot immutability independently of runtime-role privileges.
+        with pytest.raises(DBAPIError):
+            with seed_engine.begin() as owner:
+                owner.execute(
+                    text("UPDATE calculation_snapshots SET engine_version = 'tampered' WHERE id = :id"),
+                    {"id": snapshot_id},
+                )
+        with pytest.raises(DBAPIError):
+            with seed_engine.begin() as owner:
+                owner.execute(
+                    text("DELETE FROM calculation_snapshots WHERE id = :id"),
+                    {"id": snapshot_id},
+                )
     finally:
         engine.dispose()
         seed_engine.dispose()
