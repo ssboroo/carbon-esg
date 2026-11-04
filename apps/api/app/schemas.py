@@ -65,8 +65,6 @@ class ActivityInput(BaseModel):
             )
         if self.scope == "scope_1" and self.scope_2_basis is not None:
             raise ValueError("scope_2_basis is only valid for Scope 2 records")
-        if self.scope == "scope_2" and self.scope_2_basis is None:
-            raise ValueError("Scope 2 records must declare location_based or market_based")
         return self
 
 
