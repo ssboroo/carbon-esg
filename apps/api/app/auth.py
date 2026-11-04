@@ -14,7 +14,8 @@ from uuid import UUID
 import jwt
 from fastapi import Depends, Header, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jwt import InvalidTokenError, PyJWKClient
+from jwt import PyJWKClient
+from jwt.exceptions import InvalidTokenError, PyJWKClientError
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -83,7 +84,7 @@ def get_current_identity(
         return verify_access_token(credentials.credentials)
     except RuntimeError:
         raise HTTPException(status_code=503, detail="Identity provider is not configured") from None
-    except (InvalidTokenError, jwt.PyJWKClientError, ValueError):
+    except (InvalidTokenError, PyJWKClientError, ValueError):
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired access token",
