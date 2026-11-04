@@ -63,6 +63,7 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
     evidence_a, evidence_b = uuid4(), uuid4()
     snapshot_a, snapshot_b = uuid4(), uuid4()
     audit_a, audit_b = uuid4(), uuid4()
+    scope3_a, scope3_b = uuid4(), uuid4()
     tables = (
         "tenants",
         "memberships",
@@ -71,6 +72,7 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
         "evidence",
         "calculation_snapshots",
         "audit_events",
+        "scope3_category_assessments",
     )
 
     try:
@@ -166,6 +168,19 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
                 "audit_a": audit_a, "tenant_a": tenant_a, "user_a": user_a,
                 "audit_b": audit_b, "tenant_b": tenant_b, "user_b": user_b,
             })
+            connection.execute(text("""
+                INSERT INTO scope3_category_assessments (
+                    id, tenant_id, reporting_year, category, applicability,
+                    rationale, reviewed_by, reviewed_at
+                ) VALUES
+                    (:scope3_a, :tenant_a, 2026, 'investments', 'relevant',
+                     'Materiality reviewed for tenant A', :user_a, now()),
+                    (:scope3_b, :tenant_b, 2026, 'franchises', 'relevant',
+                     'Materiality reviewed for tenant B', :user_b, now())
+            """), {
+                "scope3_a": scope3_a, "tenant_a": tenant_a, "user_a": user_a,
+                "scope3_b": scope3_b, "tenant_b": tenant_b, "user_b": user_b,
+            })
 
         with engine.begin() as connection:
             role = connection.execute(text("""
@@ -193,7 +208,8 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
                   has_table_privilege('carbon_esg_app', 'public.calculation_snapshots', 'UPDATE') AS snapshot_update,
                   has_table_privilege('carbon_esg_app', 'public.audit_events', 'DELETE') AS audit_delete,
                   has_table_privilege('carbon_esg_app', 'public.activity_records', 'INSERT') AS activity_insert,
-                  has_table_privilege('carbon_esg_app', 'public.audit_events', 'INSERT') AS audit_insert
+                  has_table_privilege('carbon_esg_app', 'public.audit_events', 'INSERT') AS audit_insert,
+                  has_table_privilege('carbon_esg_app', 'public.scope3_category_assessments', 'UPDATE') AS scope3_assessment_update
             """)).one()
             assert privileges.tenant_insert is False
             assert privileges.membership_insert is False
@@ -206,6 +222,7 @@ def test_runtime_role_is_non_owner_and_rls_isolation_covers_every_tenant_table()
             assert privileges.audit_delete is False
             assert privileges.activity_insert is True
             assert privileges.audit_insert is True
+            assert privileges.scope3_assessment_update is True
 
             connection.execute(text("SET LOCAL ROLE carbon_esg_app"))
             for table in tables:
