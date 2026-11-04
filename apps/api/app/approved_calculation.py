@@ -80,6 +80,7 @@ def resolve_approved_calculation(
             "factor_source_url": factor.source_url,
             "factor_year": factor.source_year,
             "factor_version": factor.version,
+            "scope_2_basis": item.scope_2_basis,
         })
 
     calculation_request = InventoryCalculationRequest.model_validate({
@@ -111,6 +112,14 @@ def persist_approved_calculation(
             "value_kgco2e": str(f.value_kgco2e),
             "source_url": f.source_url,
             "source_year": f.source_year,
+            "source_name": f.source_name,
+            "geography": f.geography,
+            "activity_category": f.activity_category,
+            "denominator_unit": f.denominator_unit,
+            "methodology": f.methodology,
+            "valid_from": f.valid_from.isoformat(),
+            "valid_to": f.valid_to.isoformat() if f.valid_to else None,
+            "approval_note": f.approval_note,
             "approved_by": str(f.approved_by),
             "approved_at": f.approved_at.isoformat() if f.approved_at else None,
         }
