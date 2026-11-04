@@ -6,7 +6,7 @@ Mongolian-first ESG and greenhouse-gas accounting platform.
 
 - `apps/web`: Next.js + TypeScript frontend
 - `apps/api`: Python FastAPI backend
-- PostgreSQL multi-tenant persistence is planned; the current calculation endpoint is stateless.
+- PostgreSQL multi-tenant persistence foundation is defined with SQLAlchemy models, Alembic migration, tenant-scoped composite foreign keys, and PostgreSQL row-level security. The current calculation endpoint remains stateless until authentication and tenant-aware persistence routes are implemented.
 - Emissions are calculated deterministically from activity data and a supplied, documented emission factor.
 - AI may assist with document extraction and report narratives, but must never invent emission factors or authoritative calculation results.
 
@@ -47,6 +47,23 @@ The factor value is interpreted as `kgCO2e per activity unit`. Results are retur
 ```
 
 The factor in this example is illustrative only and must not be used for actual reporting.
+
+## PostgreSQL persistence foundation (not yet wired to API routes)
+
+The API now contains a tenant-scoped schema for organizations, memberships, versioned emission factors, inventories, activity records, calculation snapshots, and audit events. PostgreSQL row-level security requires transaction-local identity and organization context; membership discovery is scoped to the authenticated subject. Composite foreign keys prevent records from referencing another organization's inventory or emission factor. Emission-factor rows are immutable: corrections must be inserted as a new version.
+
+Authentication is deliberately not simulated. Do not expose tenant data routes until a verified identity provider and membership authorization dependency set both RLS contexts on every transaction. Use a restricted runtime database role; do not run the app as a superuser or a role with BYPASSRLS.
+
+Set `DATABASE_URL` to Neon's pooled connection string for runtime requests. Set `DATABASE_URL_UNPOOLED` to the direct (non-pooler) string for migrations. Never commit either secret.
+
+Run the first schema migration only after reviewing it against a Neon development branch:
+
+```bash
+cd apps/api
+alembic upgrade head
+```
+
+The migration has not been applied to the shared Neon project. It is version-controlled and must be tested on a disposable Neon branch before any shared/main-branch application.
 
 ## Local development
 
