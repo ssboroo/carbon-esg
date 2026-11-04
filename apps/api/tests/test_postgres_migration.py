@@ -72,6 +72,6 @@ def test_alembic_revision_is_applied():
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
-            assert revision == "20261104_0001"
+            assert revision == "20261104_0002"
     finally:
         engine.dispose()
