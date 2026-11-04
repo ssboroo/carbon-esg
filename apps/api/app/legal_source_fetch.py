@@ -5,7 +5,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 ALLOWED_HOSTS = {"legalinfo.mn", "www.legalinfo.mn"}
-ARTICLE_RE = re.compile(r"^\s*(\d{1,3})\s*дугаар\s+зүйл\s*[.\-:–]?\s*(.*)$", re.I)
+ARTICLE_RE = re.compile(r"^\s*(\d{1,3})\s*(?:дүгээр|дугаар)\s+зүйл\s*[.\-:–]?\s*(.*)$", re.I)
 CLAUSE_RE = re.compile(r"^\s*(\d{1,3}(?:\.\d{1,3})+)\s*[.)]?\s*(.*)$")
 
 
@@ -39,7 +39,7 @@ def extract_legal_text(html: str) -> str:
     for node in candidates:
         lines = [x.strip() for x in node.get_text("\n").splitlines() if x.strip()]
         candidate = "\n".join(lines)
-        articles = len(re.findall(r"(?im)^\d{1,3}\s*дугаар\s+зүйл", candidate))
+        articles = len(re.findall(r"(?im)^\d{1,3}\s*(?:дүгээр|дугаар)\s+зүйл", candidate))
         clauses = len(re.findall(r"(?m)^\d{1,3}\.\d+(?:\.\d+)?\s", candidate))
         score = articles * 100 + clauses + min(len(candidate) // 1000, 100)
         if score > best_score:
