@@ -112,7 +112,7 @@ def create_calculation(
 
 
 @app.get("/v1/me", tags=["identity"])
-def current_user(tenant: TenantContext = __import__("fastapi").Depends(get_current_membership)):
+def current_user(tenant: TenantContext = Depends(get_current_membership)):
     return {
         "user_id": str(tenant.user_id),
         "tenant_id": str(tenant.tenant_id),
