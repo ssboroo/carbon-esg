@@ -124,6 +124,7 @@ def persist_inventory_calculation(
             name=item.name,
             scope=item.scope,
             category=item.category,
+            scope_2_basis=item.scope_2_basis,
             amount=item.activity_amount,
             unit=item.activity_unit,
             period_start=request.reporting_period_start,
