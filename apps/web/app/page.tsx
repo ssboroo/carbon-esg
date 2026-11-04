@@ -76,13 +76,14 @@ export default function Dashboard() {
   const scope2Share = total > 0 ? (scope2 / total) * 100 : 0;
 
   const chartBars = useMemo(() => {
-    const buckets = Array.from({ length: 6 }, (_, i) => ({ label: ["I", "II", "III", "IV", "V", "VI"][i], value: 0 }));
+    const buckets = Array.from({ length: 6 }, (_, i) => ({ label: ["I", "II", "III", "IV", "V", "VI"][i], scope1: 0, scope2: 0 }));
     activities.forEach((item, index) => {
       const bucket = buckets[index % buckets.length];
-      bucket.value += item.emissions || 0;
+      if (item.scope === "scope_1") bucket.scope1 += item.emissions || 0;
+      else bucket.scope2 += item.emissions || 0;
     });
-    const max = Math.max(...buckets.map((b) => b.value), 1);
-    return buckets.map((b) => ({ ...b, height: Math.max(4, (b.value / max) * 100) }));
+    const max = Math.max(...buckets.map((b) => b.scope1 + b.scope2), 1);
+    return buckets.map((b) => ({ ...b, height: Math.max(4, ((b.scope1 + b.scope2) / max) * 100) }));
   }, [activities]);
 
   async function submitActivity(event: FormEvent<HTMLFormElement>) {
