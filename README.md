@@ -39,9 +39,9 @@ uvicorn app.main:app --reload
 
 Persisted inventory API нь activity хүсэлтээс emission-factor утга хүлээн авахгүй. Харин тухайн байгууллагад бүртгэлтэй, \`verified=true\` коэффициентийг серверээс сонгож, Scope, category, CO2e basis болон нэгжийг тулгана. Нэгжийн тэмдэглэгээ яг ижил байх ёстой. Үр дүнг Decimal арифметикаар kgCO2e-д тооцож, ROUND_HALF_UP аргаар 8 орны нарийвчлалд хадгална.
 
-Activity record нь коэффициентийн утга/нэгжийн snapshot агуулна. Calculation run нь methodology version болон activity, factor, эх сурвалж, он, хувилбарын provenance snapshot хадгална. Inventory үүсгэх, activity нэмэх, тооцоолох бүрт audit event үүснэ.
+Activity record нь коэффициентийн утга/нэгжийн snapshot агуулна. Calculation run нь methodology version болон activity, factor, эх сурвалж, он, хувилбарын provenance snapshot хадгална. Тооцоолохын өмнө activity record-ийн хадгалсан emissions утгыг snapshot factor-аар дахин тооцож тулгана. Calculation run болон audit event хүснэгтэд PostgreSQL append-only trigger үйлчилнэ.
 
-**Коэффициентийн сан хоосон эхэлнэ.** Hard-coded эсвэл зохиомол emission factor байхгүй. Коэффициентийг албан ёсны/найдвартай эх сурвалжаас баримтжуулж, эх сурвалжийн HTTPS URL, баримтын нэр, он, хувилбарыг бүртгэн, эрх бүхий data steward хянаж баталгаажуулсны дараа л \`verified=true\` болгоно. Одоогийн API-д коэффициент үүсгэх/батлах admin endpoint хараахан байхгүй; энэ нь дараагийн ажлын нэг.
+**Коэффициентийн сан хоосон эхэлнэ.** Hard-coded эсвэл зохиомол emission factor байхгүй. Коэффициентийг албан ёсны/найдвартай эх сурвалжаас баримтжуулж, эх сурвалжийн HTTPS URL, баримтын нэр, он, хувилбарыг бүртгэн, эрх бүхий data steward хянасны дараа \`verified=true\` төлөвтэй шинэ version мөр болгон оруулна. Emission-factor мөрүүд immutable тул батлагдсан коэффициентийг засварлахын оронд шинэ version үүсгэнэ. Одоогийн API-д коэффициент үүсгэх/батлах admin endpoint хараахан байхгүй.
 
 Stateless \`POST /v1/calculations\` нь клиентээс explicit factor авдаг анхны preview endpoint хэвээр. Production байгууллагын тайланг persisted inventory workflow-оор гаргана.
 

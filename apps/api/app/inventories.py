@@ -51,6 +51,23 @@ def calculate_activity_emissions(activity_amount: Decimal, factor_value: Decimal
     )
 
 
+def activity_snapshot_is_valid(record: ActivityRecord, factor: EmissionFactor) -> bool:
+    """Detect inconsistent stored activity/factor snapshots before a report is issued."""
+    factor_unit = factor.factor_unit.strip()
+    return (
+        factor.verified
+        and factor.scope == record.scope
+        and factor.category == record.category
+        and factor.gas_basis.strip().casefold() == "co2e"
+        and factor_unit == record.activity_unit == record.factor_unit_snapshot
+        and factor.factor_value == record.factor_value_snapshot
+        and calculate_activity_emissions(
+            record.activity_amount,
+            record.factor_value_snapshot,
+        ) == record.emissions_kgco2e
+    )
+
+
 def _require_membership(
     db: Session,
     user_subject: str,
@@ -445,10 +462,13 @@ def calculate_persisted_inventory(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Тооцоолохын өмнө үйл ажиллагааны мөр нэмнэ үү",
                 )
-            if any(not factor.verified for _record, factor in rows):
+            if any(
+                not activity_snapshot_is_valid(record, factor)
+                for record, factor in rows
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Баталгаажаагүй коэффициенттэй мөр байна; тооцоолол зогслоо",
+                    detail="Үйл ажиллагааны мөр эсвэл коэффициентийн snapshot зөрүүтэй байна; тооцоолол зогслоо",
                 )
 
             scope_1 = sum(
@@ -494,8 +514,8 @@ def calculate_persisted_inventory(
                 total_kgco2e=total,
                 methodology_version=METHODOLOGY_VERSION,
                 input_snapshot={
-                    "methodology": "activity_amount × versioned_emission_factor",
-                    "rounding": "ROUND_HALF_UP to 8 decimal places in kgCO2e",
+                    "methodology": "emissions_kgco2e = activity_amount × factor_value_kgco2e_per_unit",
+                    "rounding": "ROUND_HALF_UP to 8 decimal places in kgCO2e per activity record",
                     "records": snapshot_records,
                 },
                 calculated_by_subject=user["sub"],

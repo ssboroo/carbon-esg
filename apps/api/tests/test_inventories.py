@@ -1,11 +1,15 @@
 from datetime import date
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.inventories import calculate_activity_emissions
+from app.inventories import (
+    activity_snapshot_is_valid,
+    calculate_activity_emissions,
+)
 from app.inventory_schemas import ActivityRecordCreate, InventoryCreate
 from app.main import app
 
@@ -61,6 +65,34 @@ def test_activity_emissions_use_decimal_and_eight_place_rounding():
         Decimal("1"),
         Decimal("1.234567895"),
     ) == Decimal("1.23456790")
+
+
+def test_calculation_rejects_tampered_or_unverified_activity_snapshots():
+    record = SimpleNamespace(
+        scope="scope_2",
+        category="purchased_electricity",
+        activity_amount=Decimal("2"),
+        activity_unit="kWh",
+        factor_value_snapshot=Decimal("0.5"),
+        factor_unit_snapshot="kWh",
+        emissions_kgco2e=Decimal("1.00000000"),
+    )
+    factor = SimpleNamespace(
+        verified=True,
+        scope="scope_2",
+        category="purchased_electricity",
+        gas_basis="CO2e",
+        factor_unit="kWh",
+        factor_value=Decimal("0.5"),
+    )
+    assert activity_snapshot_is_valid(record, factor)
+
+    record.emissions_kgco2e = Decimal("1.10000000")
+    assert not activity_snapshot_is_valid(record, factor)
+
+    record.emissions_kgco2e = Decimal("1.00000000")
+    factor.verified = False
+    assert not activity_snapshot_is_valid(record, factor)
 
 
 def test_tenant_routes_require_authenticated_membership():
