@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .auth import get_current_user
 from .calculator import calculate_inventory
 from .inventories import factor_router, router as inventories_router
+from .factor_reviews import router as factor_reviews_router
 from .organizations import router as organizations_router
 from .schemas import InventoryCalculationRequest, InventoryCalculationResult
 
@@ -25,6 +26,7 @@ if not cors_origins or "*" in cors_origins:
 
 app.include_router(organizations_router)
 app.include_router(factor_router)
+app.include_router(factor_reviews_router)
 app.include_router(inventories_router)
 
 app.add_middleware(

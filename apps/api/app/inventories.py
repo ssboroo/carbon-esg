@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -24,10 +24,12 @@ from .models import (
     AuditEvent,
     CalculationRun,
     EmissionFactor,
+    EmissionFactorReview,
     Inventory,
     OrganizationMembership,
 )
 from .schemas import SCOPE_1_CATEGORIES, SCOPE_2_CATEGORIES
+from .factor_status import factor_approval_status, is_factor_approved
 
 router = APIRouter(
     prefix="/v1/organizations/{organization_id}/inventories",
@@ -51,11 +53,15 @@ def calculate_activity_emissions(activity_amount: Decimal, factor_value: Decimal
     )
 
 
-def activity_snapshot_is_valid(record: ActivityRecord, factor: EmissionFactor) -> bool:
-    """Detect inconsistent stored activity/factor snapshots before a report is issued."""
+def activity_snapshot_is_valid(
+    record: ActivityRecord,
+    factor: EmissionFactor,
+    review_decision: str | None = None,
+) -> bool:
+    """Validate the immutable activity/factor snapshot and its approval state."""
     factor_unit = factor.factor_unit.strip()
     return (
-        factor.verified
+        is_factor_approved(factor, review_decision)
         and factor.scope == record.scope
         and factor.category == record.category
         and factor.gas_basis.strip().casefold() == "co2e"
@@ -150,9 +156,17 @@ def list_verified_emission_factors(
             _require_membership(db, user["sub"], organization_id)
             statement = (
                 select(EmissionFactor)
+                .outerjoin(
+                    EmissionFactorReview,
+                    (EmissionFactorReview.organization_id == EmissionFactor.organization_id)
+                    & (EmissionFactorReview.emission_factor_id == EmissionFactor.id),
+                )
                 .where(
                     EmissionFactor.organization_id == organization_id,
-                    EmissionFactor.verified.is_(True),
+                    or_(
+                        EmissionFactor.verified.is_(True),
+                        EmissionFactorReview.decision == "approved",
+                    ),
                 )
                 .order_by(
                     EmissionFactor.scope.asc(),
@@ -182,6 +196,7 @@ def list_verified_emission_factors(
                     source_document=factor.source_document,
                     factor_year=factor.factor_year,
                     version=factor.version,
+                    approval_status="approved",
                 )
                 for factor in factors
             ]
@@ -333,13 +348,23 @@ def create_activity_record(
                     detail="Зөвхөн ноорог тайланд үйл ажиллагааны мөр нэмэх боломжтой",
                 )
 
-            factor = db.scalar(
-                select(EmissionFactor).where(
+            factor_row = db.execute(
+                select(EmissionFactor, EmissionFactorReview.decision)
+                .outerjoin(
+                    EmissionFactorReview,
+                    (EmissionFactorReview.organization_id == EmissionFactor.organization_id)
+                    & (EmissionFactorReview.emission_factor_id == EmissionFactor.id),
+                )
+                .where(
                     EmissionFactor.id == request.emission_factor_id,
                     EmissionFactor.organization_id == organization_id,
-                    EmissionFactor.verified.is_(True),
+                    or_(
+                        EmissionFactor.verified.is_(True),
+                        EmissionFactorReview.decision == "approved",
+                    ),
                 )
-            )
+            ).first()
+            factor = factor_row[0] if factor_row else None
             if factor is None:
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -445,11 +470,16 @@ def calculate_persisted_inventory(
             _require_membership(db, user["sub"], organization_id, write=True)
             _get_inventory(db, organization_id, inventory_id)
             rows = db.execute(
-                select(ActivityRecord, EmissionFactor)
+                select(ActivityRecord, EmissionFactor, EmissionFactorReview.decision)
                 .join(
                     EmissionFactor,
                     (ActivityRecord.organization_id == EmissionFactor.organization_id)
                     & (ActivityRecord.emission_factor_id == EmissionFactor.id),
+                )
+                .outerjoin(
+                    EmissionFactorReview,
+                    (EmissionFactorReview.organization_id == EmissionFactor.organization_id)
+                    & (EmissionFactorReview.emission_factor_id == EmissionFactor.id),
                 )
                 .where(
                     ActivityRecord.organization_id == organization_id,
@@ -463,8 +493,8 @@ def calculate_persisted_inventory(
                     detail="Тооцоолохын өмнө үйл ажиллагааны мөр нэмнэ үү",
                 )
             if any(
-                not activity_snapshot_is_valid(record, factor)
-                for record, factor in rows
+                not activity_snapshot_is_valid(record, factor, review_decision)
+                for record, factor, review_decision in rows
             ):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -472,17 +502,17 @@ def calculate_persisted_inventory(
                 )
 
             scope_1 = sum(
-                (record.emissions_kgco2e for record, _factor in rows if record.scope == "scope_1"),
+                (record.emissions_kgco2e for record, _factor, _review_decision in rows if record.scope == "scope_1"),
                 Decimal("0"),
             ).quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
             scope_2 = sum(
-                (record.emissions_kgco2e for record, _factor in rows if record.scope == "scope_2"),
+                (record.emissions_kgco2e for record, _factor, _review_decision in rows if record.scope == "scope_2"),
                 Decimal("0"),
             ).quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
             total = scope_1 + scope_2
 
             snapshot_records = []
-            for record, factor in rows:
+            for record, factor, review_decision in rows:
                 snapshot_records.append(
                     {
                         "activity_record_id": str(record.id),
@@ -501,6 +531,7 @@ def calculate_persisted_inventory(
                         "factor_source_document": factor.source_document,
                         "factor_year": factor.factor_year,
                         "factor_version": factor.version,
+                        "factor_approval_status": factor_approval_status(factor, review_decision),
                         "emissions_kgco2e": str(record.emissions_kgco2e),
                     }
                 )
