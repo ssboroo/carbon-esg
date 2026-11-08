@@ -2,6 +2,7 @@
 
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth/client";
+import { FactorReviewPanel } from "./factor-review-panel";
 
 type Organization = { id: string; name: string; slug: string; role: string };
 type Inventory = {
@@ -161,6 +162,17 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
     selectedOrganization && ["owner", "admin", "editor"].includes(selectedOrganization.role)
   );
   const latestCalculation = calculations[0] || null;
+
+  const refreshFactors = useCallback(async () => {
+    if (!organizationId) return;
+    const rows = await apiRequest<EmissionFactor[]>(
+      "/v1/organizations/" + organizationId + "/emission-factors"
+    );
+    setFactors(rows);
+    setFactorId((current) =>
+      rows.some((item) => item.id === current) ? current : rows[0]?.id || ""
+    );
+  }, [apiRequest, organizationId]);
 
   useEffect(() => {
     const year = new Date().getFullYear();
@@ -519,6 +531,15 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                 </div>
               )}
             </section>
+          )}
+
+          {selectedOrganization && (
+            <FactorReviewPanel
+              organizationId={selectedOrganization.id}
+              role={selectedOrganization.role}
+              apiRequest={apiRequest}
+              onFactorsChanged={refreshFactors}
+            />
           )}
 
           {selectedOrganization && selectedInventory && (
