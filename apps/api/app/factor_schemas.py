@@ -14,6 +14,7 @@ class EmissionFactorCreate(BaseModel):
     factor_code: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$")
     name: str = Field(min_length=2, max_length=200)
     scope: Scope
+    scope_2_method: Literal["location_based", "market_based"] | None = None
     category: str = Field(min_length=1, max_length=64)
     factor_value: Decimal = Field(ge=0, max_digits=24, decimal_places=12)
     factor_unit: str = Field(min_length=1, max_length=32)
@@ -52,6 +53,10 @@ class EmissionFactorCreate(BaseModel):
         allowed = SCOPE_1_CATEGORIES if self.scope == "scope_1" else SCOPE_2_CATEGORIES
         if self.category not in allowed:
             raise ValueError("Category does not belong to the selected GHG scope")
+        if self.scope == "scope_1" and self.scope_2_method is not None:
+            raise ValueError("Scope 1 factors must not specify a Scope 2 method")
+        if self.scope == "scope_2" and self.scope_2_method is None:
+            raise ValueError("Scope 2 factors require a location-based or market-based method")
         return self
 
 
@@ -75,6 +80,7 @@ class FactorReviewQueueItem(BaseModel):
     factor_code: str
     name: str
     scope: Scope
+    scope_2_method: Literal["location_based", "market_based"] | None
     category: str
     factor_value: Decimal
     factor_unit: str

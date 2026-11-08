@@ -42,6 +42,7 @@ def _queue_item(factor: EmissionFactor, review: EmissionFactorReview | None) -> 
         factor_code=factor.factor_code,
         name=factor.name,
         scope=factor.scope,
+        scope_2_method=factor.scope_2_method,
         category=factor.category,
         factor_value=factor.factor_value,
         factor_unit=factor.factor_unit,
@@ -77,6 +78,7 @@ def submit_emission_factor(
                 factor_code=request.factor_code,
                 name=request.name,
                 scope=request.scope,
+                scope_2_method=request.scope_2_method,
                 category=request.category,
                 factor_value=request.factor_value,
                 factor_unit=request.factor_unit,
@@ -102,6 +104,7 @@ def submit_emission_factor(
                         "factor_code": factor.factor_code,
                         "version": factor.version,
                         "scope": factor.scope,
+                        "scope_2_method": factor.scope_2_method,
                         "category": factor.category,
                         "factor_value": str(factor.factor_value),
                         "factor_unit": factor.factor_unit,
@@ -209,6 +212,11 @@ def review_emission_factor(
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Энэ коэффициент өмнө нь баталгаажсан бөгөөд өөрчлөх боломжгүй",
+                )
+            if factor.scope == "scope_2" and factor.scope_2_method not in {"location_based", "market_based"}:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Хуучин Scope 2 коэффициентэд аргачлал тодорхойгүй байна; location-based эсвэл market-based гэж шинэ хувилбараар дахин бүртгэнэ үү",
                 )
             _require_independent_reviewer(factor.submitted_by_subject, user["sub"])
             existing_review = db.scalar(

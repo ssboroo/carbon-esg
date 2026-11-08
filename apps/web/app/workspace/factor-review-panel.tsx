@@ -13,6 +13,7 @@ type FactorReviewItem = {
   factor_code: string;
   name: string;
   scope: Scope;
+  scope_2_method: "location_based" | "market_based" | null;
   category: string;
   factor_value: string | number;
   factor_unit: string;
@@ -34,6 +35,7 @@ type FactorDraft = {
   factor_code: string;
   name: string;
   scope: Scope;
+  scope_2_method: "location_based" | "market_based" | null;
   category: string;
   factor_value: string;
   factor_unit: string;
@@ -72,6 +74,7 @@ function createInitialDraft(): FactorDraft {
     factor_code: "",
     name: "",
     scope: "scope_1",
+    scope_2_method: null,
     category: "stationary_combustion",
     factor_value: "",
     factor_unit: "",
@@ -183,6 +186,7 @@ export function FactorReviewPanel({
     setDraft((current) => ({
       ...current,
       scope,
+      scope_2_method: scope === "scope_2" ? "location_based" : null,
       category: CATEGORY_OPTIONS[scope][0].value
     }));
   }
@@ -327,6 +331,18 @@ export function FactorReviewPanel({
               ))}
             </select>
           </label>
+          {draft.scope === "scope_2" && (
+            <label className="field">
+              <span>Scope 2 тайлагналын арга</span>
+              <select
+                value={draft.scope_2_method || "location_based"}
+                onChange={(event) => updateDraft("scope_2_method", event.target.value as "location_based" | "market_based")}
+              >
+                <option value="location_based">Location-based · Байршилд суурилсан</option>
+                <option value="market_based">Market-based · Зах зээлд суурилсан</option>
+              </select>
+            </label>
+          )}
           <label className="field">
             <span>Коэффициентийн утга (kgCO₂e / нэгж)</span>
             <input
@@ -413,7 +429,7 @@ export function FactorReviewPanel({
       )}
 
       <div className="factor-accounting-note">
-        Scope 2-ын location-based болон market-based аргыг тусад нь тайлагнах шаардлага энэ хувилбарт хараахан хэрэгжээгүй. Энэ бүртгэл тэдгээр аргыг ялгасан гэж үзэхгүй.
+        Scope 2-ын location-based болон market-based коэффициентийг тусдаа бүртгэж, тусдаа тооцно. Аль нэг аргын дүнг нөгөө аргатай нэмж болохгүй.
       </div>
 
       {canReview && (
@@ -449,7 +465,7 @@ export function FactorReviewPanel({
                     <span className={"factor-status " + item.approval_status}>{statusLabel(item.approval_status)}</span>
                   </div>
                   <div className="factor-review-details">
-                    <span>{scopeLabel(item.scope)}</span>
+                    <span>{scopeLabel(item.scope)}{item.scope_2_method ? " · " + (item.scope_2_method === "location_based" ? "Location-based" : "Market-based") : ""}</span>
                     <span>{CATEGORY_OPTIONS[item.scope].find((category) => category.value === item.category)?.label || item.category}</span>
                     <strong>{formatFactorValue(item.factor_value)} kgCO₂e / {item.factor_unit}</strong>
                     <span>Хийн суурь: {item.gas_basis}</span>
@@ -459,7 +475,9 @@ export function FactorReviewPanel({
                     {item.source_document && <span>{item.source_document}</span>}
                   </div>
 
-                  {item.approval_status === "pending" ? (
+                  {item.approval_status === "pending" && item.scope === "scope_2" && !item.scope_2_method ? (
+                    <p className="empty-state">Энэ хуучин коэффициентэд Scope 2 аргачлал тодорхойгүй байна. Location-based эсвэл market-based гэж шинэ хувилбараар дахин бүртгүүлнэ үү.</p>
+                  ) : item.approval_status === "pending" ? (
                     <div className="factor-review-actions">
                       <label className="field">
                         <span>Хяналтын тайлбар (дор хаяж 10 тэмдэгт)</span>

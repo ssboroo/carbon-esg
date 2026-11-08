@@ -18,6 +18,7 @@ def valid_factor_payload() -> dict:
         "factor_code": "MN-GRID-2026",
         "name": "Монголын цахилгаан эрчим хүч",
         "scope": "scope_2",
+        "scope_2_method": "location_based",
         "category": "purchased_electricity",
         "factor_value": "0.500000000000",
         "factor_unit": "kWh",
@@ -89,6 +90,7 @@ def test_only_approved_review_or_legacy_verified_factor_is_usable():
 def test_activity_snapshot_accepts_approved_review_without_mutating_factor():
     record = SimpleNamespace(
         scope="scope_2",
+        scope_2_method="location_based",
         category="purchased_electricity",
         activity_amount=Decimal("2"),
         activity_unit="kWh",
@@ -99,6 +101,7 @@ def test_activity_snapshot_accepts_approved_review_without_mutating_factor():
     factor = SimpleNamespace(
         verified=False,
         scope="scope_2",
+        scope_2_method="location_based",
         category="purchased_electricity",
         gas_basis="CO2e",
         factor_unit="kWh",
@@ -141,3 +144,15 @@ def test_factor_review_requires_known_submitter_identity():
 
 def test_independent_factor_reviewer_is_allowed():
     _require_independent_reviewer("user-submitter", "user-reviewer")
+
+def test_scope2_factor_requires_an_explicit_method():
+    payload = valid_factor_payload()
+    payload.pop("scope_2_method")
+    with pytest.raises(ValidationError):
+        EmissionFactorCreate(**payload)
+
+    payload = valid_factor_payload()
+    payload["scope"] = "scope_1"
+    payload["category"] = "stationary_combustion"
+    payload["scope_2_method"] = None
+    EmissionFactorCreate(**payload)

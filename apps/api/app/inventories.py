@@ -42,7 +42,7 @@ factor_router = APIRouter(
 
 WRITE_ROLES = {"owner", "admin", "editor"}
 EIGHT_PLACES = Decimal("0.00000001")
-METHODOLOGY_VERSION = "scope12-v1.0.0"
+METHODOLOGY_VERSION = "scope12-v1.1.0-dual-method"
 
 
 def calculate_activity_emissions(activity_amount: Decimal, factor_value: Decimal) -> Decimal:
@@ -50,6 +50,33 @@ def calculate_activity_emissions(activity_amount: Decimal, factor_value: Decimal
     return (activity_amount * factor_value).quantize(
         EIGHT_PLACES,
         rounding=ROUND_HALF_UP,
+    )
+
+
+def calculate_scope2_method_totals(scope_1: Decimal, scope_2_records: list[ActivityRecord], primary_method: str):
+    """Calculate the two alternative Scope 2 methods separately; never add them together."""
+    if primary_method not in {"location_based", "market_based"}:
+        raise ValueError("Unknown primary Scope 2 method")
+    totals = {"location_based": Decimal("0"), "market_based": Decimal("0")}
+    present: set[str] = set()
+    for record in scope_2_records:
+        method = record.scope_2_method
+        if method not in totals:
+            raise ValueError("Every new Scope 2 activity must declare a valid method")
+        present.add(method)
+        totals[method] += record.emissions_kgco2e
+    if scope_2_records and primary_method not in present:
+        raise ValueError("The inventory primary Scope 2 method has no activity records")
+
+    location = totals["location_based"].quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP) if "location_based" in present else None
+    market = totals["market_based"].quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP) if "market_based" in present else None
+    primary = totals[primary_method].quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
+    return (
+        primary,
+        location,
+        market,
+        (scope_1 + location) if location is not None else None,
+        (scope_1 + market) if market is not None else None,
     )
 
 
@@ -64,6 +91,8 @@ def activity_snapshot_is_valid(
         is_factor_approved(factor, review_decision)
         and factor.scope == record.scope
         and factor.category == record.category
+        and factor.scope_2_method == record.scope_2_method
+        and ((record.scope == "scope_1" and record.scope_2_method is None) or (record.scope == "scope_2" and record.scope_2_method in {"location_based", "market_based"}))
         and factor.gas_basis.strip().casefold() == "co2e"
         and factor_unit == record.activity_unit == record.factor_unit_snapshot
         and factor.factor_value == record.factor_value_snapshot
@@ -127,6 +156,7 @@ def _activity_summary(record: ActivityRecord, factor: EmissionFactor) -> Activit
         id=record.id,
         name=record.name,
         scope=record.scope,
+        scope_2_method=record.scope_2_method,
         category=record.category,
         activity_amount=record.activity_amount,
         activity_unit=record.activity_unit,
@@ -163,6 +193,7 @@ def list_verified_emission_factors(
                 )
                 .where(
                     EmissionFactor.organization_id == organization_id,
+                    or_(EmissionFactor.scope == "scope_1", EmissionFactor.scope_2_method.in_({"location_based", "market_based"})),
                     or_(
                         EmissionFactor.verified.is_(True),
                         EmissionFactorReview.decision == "approved",
@@ -187,6 +218,7 @@ def list_verified_emission_factors(
                     factor_code=factor.factor_code,
                     name=factor.name,
                     scope=factor.scope,
+                    scope_2_method=factor.scope_2_method,
                     category=factor.category,
                     factor_value=factor.factor_value,
                     factor_unit=factor.factor_unit,
@@ -228,6 +260,7 @@ def list_inventories(
                     reporting_period_start=row.reporting_period_start,
                     reporting_period_end=row.reporting_period_end,
                     status=row.status,
+                    scope_2_primary_method=row.scope_2_primary_method,
                 )
                 for row in rows
             ]
@@ -256,6 +289,7 @@ def create_inventory(
                 reporting_period_start=request.reporting_period_start,
                 reporting_period_end=request.reporting_period_end,
                 status="draft",
+                scope_2_primary_method=request.scope_2_primary_method,
                 created_by_subject=user["sub"],
             )
             db.add(inventory)
@@ -271,6 +305,7 @@ def create_inventory(
                         "name": request.name,
                         "reporting_period_start": request.reporting_period_start.isoformat(),
                         "reporting_period_end": request.reporting_period_end.isoformat(),
+                        "scope_2_primary_method": request.scope_2_primary_method,
                     },
                 )
             )
@@ -280,6 +315,7 @@ def create_inventory(
             reporting_period_start=request.reporting_period_start,
             reporting_period_end=request.reporting_period_end,
             status="draft",
+            scope_2_primary_method=request.scope_2_primary_method,
         )
     except IntegrityError as exc:
         raise HTTPException(
@@ -303,7 +339,7 @@ def list_activity_records(
     try:
         with db.begin():
             _require_membership(db, user["sub"], organization_id)
-            _get_inventory(db, organization_id, inventory_id)
+            inventory = _get_inventory(db, organization_id, inventory_id)
             rows = db.execute(
                 select(ActivityRecord, EmissionFactor)
                 .join(
@@ -389,6 +425,10 @@ def create_activity_record(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="Зөвхөн CO2e суурьтай баталгаажсан коэффициент ашиглана",
                 )
+            if request.scope == "scope_1" and factor.scope_2_method is not None:
+                raise HTTPException(status_code=422, detail="Scope 1 коэффициентэд Scope 2 аргачлал байх ёсгүй")
+            if request.scope == "scope_2" and factor.scope_2_method not in {"location_based", "market_based"}:
+                raise HTTPException(status_code=422, detail="Scope 2 коэффициент location-based эсвэл market-based аргачлалтай байх ёстой")
             factor_unit = factor.factor_unit.strip()
             if factor_unit != request.activity_unit:
                 raise HTTPException(
@@ -407,6 +447,7 @@ def create_activity_record(
                 emission_factor_id=factor.id,
                 name=request.name,
                 scope=request.scope,
+                scope_2_method=factor.scope_2_method,
                 category=request.category,
                 activity_amount=request.activity_amount,
                 activity_unit=request.activity_unit,
@@ -426,6 +467,7 @@ def create_activity_record(
                     details={
                         "inventory_id": str(inventory_id),
                         "scope": request.scope,
+                        "scope_2_method": factor.scope_2_method,
                         "category": request.category,
                         "activity_amount": str(request.activity_amount),
                         "activity_unit": request.activity_unit,
@@ -505,10 +547,23 @@ def calculate_persisted_inventory(
                 (record.emissions_kgco2e for record, _factor, _review_decision in rows if record.scope == "scope_1"),
                 Decimal("0"),
             ).quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
-            scope_2 = sum(
-                (record.emissions_kgco2e for record, _factor, _review_decision in rows if record.scope == "scope_2"),
-                Decimal("0"),
-            ).quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
+            scope_2_rows = [record for record, _factor, _review_decision in rows if record.scope == "scope_2"]
+            primary_method = inventory.scope_2_primary_method
+            try:
+                (
+                    scope_2,
+                    scope_2_location,
+                    scope_2_market,
+                    total_location,
+                    total_market,
+                ) = calculate_scope2_method_totals(scope_1, scope_2_rows, primary_method)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Scope 2 аргачлалын өгөгдөл дутуу эсвэл зөрүүтэй байна",
+                ) from exc
+            has_location = scope_2_location is not None
+            has_market = scope_2_market is not None
             total = scope_1 + scope_2
 
             snapshot_records = []
@@ -518,6 +573,7 @@ def calculate_persisted_inventory(
                         "activity_record_id": str(record.id),
                         "name": record.name,
                         "scope": record.scope,
+                        "scope_2_method": record.scope_2_method,
                         "category": record.category,
                         "activity_amount": str(record.activity_amount),
                         "activity_unit": record.activity_unit,
@@ -542,6 +598,11 @@ def calculate_persisted_inventory(
                 inventory_id=inventory_id,
                 scope_1_kgco2e=scope_1,
                 scope_2_kgco2e=scope_2,
+                scope_2_primary_method=primary_method,
+                scope_2_location_based_kgco2e=scope_2_location if has_location else None,
+                scope_2_market_based_kgco2e=scope_2_market if has_market else None,
+                total_location_based_kgco2e=total_location,
+                total_market_based_kgco2e=total_market,
                 total_kgco2e=total,
                 methodology_version=METHODOLOGY_VERSION,
                 input_snapshot={
@@ -564,7 +625,11 @@ def calculate_persisted_inventory(
                         "inventory_id": str(inventory_id),
                         "methodology_version": METHODOLOGY_VERSION,
                         "scope_1_kgco2e": str(scope_1),
-                        "scope_2_kgco2e": str(scope_2),
+                        "scope_2_primary_method": primary_method,
+                        "scope_2_location_based_kgco2e": str(scope_2_location) if has_location else None,
+                        "scope_2_market_based_kgco2e": str(scope_2_market) if has_market else None,
+                        "total_location_based_kgco2e": str(total_location) if total_location is not None else None,
+                        "total_market_based_kgco2e": str(total_market) if total_market is not None else None,
                         "total_kgco2e": str(total),
                         "activity_record_count": len(rows),
                     },
@@ -577,6 +642,11 @@ def calculate_persisted_inventory(
             inventory_id=inventory_id,
             scope_1_kgco2e=scope_1,
             scope_2_kgco2e=scope_2,
+            scope_2_location_based_kgco2e=scope_2_location if has_location else None,
+            scope_2_market_based_kgco2e=scope_2_market if has_market else None,
+            total_location_based_kgco2e=total_location,
+            total_market_based_kgco2e=total_market,
+            scope_2_primary_method=primary_method,
             total_kgco2e=total,
             methodology_version=METHODOLOGY_VERSION,
             created_at=run.created_at,
@@ -618,6 +688,11 @@ def list_calculation_runs(
                     inventory_id=row.inventory_id,
                     scope_1_kgco2e=row.scope_1_kgco2e,
                     scope_2_kgco2e=row.scope_2_kgco2e,
+                    scope_2_location_based_kgco2e=row.scope_2_location_based_kgco2e,
+                    scope_2_market_based_kgco2e=row.scope_2_market_based_kgco2e,
+                    total_location_based_kgco2e=row.total_location_based_kgco2e,
+                    total_market_based_kgco2e=row.total_market_based_kgco2e,
+                    scope_2_primary_method=row.scope_2_primary_method,
                     total_kgco2e=row.total_kgco2e,
                     methodology_version=row.methodology_version,
                     created_at=row.created_at,

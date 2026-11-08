@@ -69,7 +69,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .organization-picker { max-width: 520px; margin-bottom: 16px; }
 .inline-form { display: flex; align-items: flex-end; gap: 12px; max-width: 720px; }
 .inline-form .field { flex: 1; }
-.inventory-form { display: grid; grid-template-columns: minmax(180px, 1.5fr) repeat(2, minmax(140px, 1fr)) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
+.inventory-form { display: grid; grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(140px, 1fr)) auto; align-items: end; gap: 12px; margin-bottom: 18px; }
 .activity-form { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(240px, 1.5fr) minmax(150px, .7fr); align-items: end; gap: 12px; margin-bottom: 20px; }
 .activity-form .button-primary { grid-column: 1 / -1; justify-self: start; }
 .factor-provenance { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap; padding: 10px 12px; background: #f5f8f5; border-radius: 9px; color: var(--muted); font-size: 12px; }
@@ -91,7 +91,7 @@ button:disabled { opacity: .6; cursor: wait; }
 .data-table th { color: var(--muted); background: #f7f9f7; font-weight: 700; white-space: nowrap; }
 .data-table tbody tr:last-child td { border-bottom: 0; }
 .data-table td { line-height: 1.5; }
-.calculation-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.calculation-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .calculation-grid article { display: grid; gap: 12px; padding: 17px; border: 1px solid var(--line); border-radius: 11px; }
 .calculation-grid article span { color: var(--muted); font-size: 12px; }
 .calculation-grid article strong { font-size: clamp(18px, 2.6vw, 25px); letter-spacing: -.5px; overflow-wrap: anywhere; }
@@ -107,12 +107,12 @@ button:disabled { opacity: .6; cursor: wait; }
   .inventory-form .field:first-child { grid-column: 1 / -1; }
   .activity-form { grid-template-columns: 1fr 1fr; }
   .activity-form .field:nth-child(2) { grid-column: 1 / -1; }
-  .calculation-grid { grid-template-columns: 1fr; }
+  .calculation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
   .inline-form { display: grid; }
   .inline-form .button-primary { width: 100%; }
-  .inventory-form, .activity-form { grid-template-columns: 1fr; }
+  .inventory-form, .activity-form, .calculation-grid { grid-template-columns: 1fr; }
   .inventory-form .field:first-child, .activity-form .field:nth-child(2), .activity-form .button-primary, .factor-provenance { grid-column: auto; }
   .section-heading { align-items: flex-start; }
   .history-item { grid-template-columns: 1fr auto; }

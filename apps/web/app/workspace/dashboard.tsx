@@ -12,12 +12,14 @@ type Inventory = {
   reporting_period_start: string;
   reporting_period_end: string;
   status: string;
+  scope_2_primary_method: "location_based" | "market_based";
 };
 type EmissionFactor = {
   id: string;
   factor_code: string;
   name: string;
   scope: "scope_1" | "scope_2";
+  scope_2_method: "location_based" | "market_based" | null;
   category: string;
   factor_value: string;
   factor_unit: string;
@@ -32,6 +34,7 @@ type ActivityRecord = {
   id: string;
   name: string;
   scope: "scope_1" | "scope_2";
+  scope_2_method: "location_based" | "market_based" | null;
   category: string;
   activity_amount: string;
   activity_unit: string;
@@ -50,6 +53,11 @@ type Calculation = {
   inventory_id: string;
   scope_1_kgco2e: string;
   scope_2_kgco2e: string;
+  scope_2_primary_method: "location_based" | "market_based";
+  scope_2_location_based_kgco2e: string | null;
+  scope_2_market_based_kgco2e: string | null;
+  total_location_based_kgco2e: string | null;
+  total_market_based_kgco2e: string | null;
   total_kgco2e: string;
   methodology_version: string;
   created_at: string;
@@ -108,6 +116,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
   const [inventoryName, setInventoryName] = useState("");
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
+  const [scope2PrimaryMethod, setScope2PrimaryMethod] = useState<"location_based" | "market_based">("location_based");
   const [activityName, setActivityName] = useState("");
   const [activityAmount, setActivityAmount] = useState("");
   const [factorId, setFactorId] = useState("");
@@ -320,13 +329,15 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
           body: JSON.stringify({
             name: inventoryName.trim(),
             reporting_period_start: periodStart,
-            reporting_period_end: periodEnd
+            reporting_period_end: periodEnd,
+            scope_2_primary_method: scope2PrimaryMethod
           })
         }
       );
       setInventories((current) => [inventory, ...current]);
       setInventoryId(inventory.id);
       setInventoryName("");
+      setScope2PrimaryMethod("location_based");
       setNotice("Тайлант бүртгэл үүслээ. Одоо баталгаажсан коэффициенттэй үйл ажиллагааны мэдээлэл нэмнэ үү.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Тайлант бүртгэл үүсгэсэнгүй.");
@@ -406,12 +417,17 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
       ["Тайлан", selectedInventory.name],
       ["Эхлэх огноо", selectedInventory.reporting_period_start],
       ["Дуусах огноо", selectedInventory.reporting_period_end],
+      ["Scope 2 үндсэн арга", selectedInventory.scope_2_primary_method],
+      ["Scope 2 location-based (kgCO2e)", latestCalculation?.scope_2_location_based_kgco2e || ""],
+      ["Scope 2 market-based (kgCO2e)", latestCalculation?.scope_2_market_based_kgco2e || ""],
+      ["Нийт location-based (kgCO2e)", latestCalculation?.total_location_based_kgco2e || ""],
+      ["Нийт market-based (kgCO2e)", latestCalculation?.total_market_based_kgco2e || ""],
       ["Сүүлийн аргачлал", latestCalculation?.methodology_version || "Тооцоолоогүй"],
       ["Сүүлийн тооцооллын огноо", latestCalculation?.created_at || ""],
       [],
-      ["Үйл ажиллагаа", "Scope", "Ангилал", "Хэмжээ", "Нэгж", "Factor code", "Factor version", "Factor value", "Factor denominator unit", "Source", "Source URL", "Factor year", "Ялгаруулалт (kgCO2e)"],
+      ["Үйл ажиллагаа", "Scope", "Scope 2 method", "Ангилал", "Хэмжээ", "Нэгж", "Factor code", "Factor version", "Factor value", "Factor denominator unit", "Source", "Source URL", "Factor year", "Ялгаруулалт (kgCO2e)"],
       ...activities.map((item) => [
-        item.name, item.scope, item.category, item.activity_amount, item.activity_unit,
+        item.name, item.scope, item.scope_2_method || "", item.category, item.activity_amount, item.activity_unit,
         item.factor_code, item.factor_version, item.factor_value_snapshot,
         item.factor_unit_snapshot, item.factor_source_name, item.factor_source_url,
         item.factor_year, item.emissions_kgco2e
@@ -539,6 +555,13 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                     <span>Дуусах огноо</span>
                     <input type="date" value={periodEnd} onChange={(event) => setPeriodEnd(event.target.value)} min={periodStart || undefined} required />
                   </label>
+                  <label className="field">
+                    <span>Нийт тайланд ашиглах үндсэн Scope 2 арга</span>
+                    <select value={scope2PrimaryMethod} onChange={(event) => setScope2PrimaryMethod(event.target.value as "location_based" | "market_based")}>
+                      <option value="location_based">Location-based</option>
+                      <option value="market_based">Market-based</option>
+                    </select>
+                  </label>
                   <button className="button-primary" type="submit" disabled={busy !== ""}>
                     {busy === "inventory" ? "Хадгалж байна…" : "Тайлан үүсгэх"}
                   </button>
@@ -560,7 +583,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                     >
                       <span className="inventory-item-main">
                         <strong>{item.name}</strong>
-                        <small>{formatDate(item.reporting_period_start)} — {formatDate(item.reporting_period_end)}</small>
+                        <small>{formatDate(item.reporting_period_start)} — {formatDate(item.reporting_period_end)} · Scope 2 primary: {item.scope_2_primary_method === "location_based" ? "Location-based" : "Market-based"}</small>
                       </span>
                       <span className="status-chip">{item.status === "draft" ? "Ноорог" : item.status}</span>
                     </button>
@@ -585,7 +608,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                 <div className="section-heading">
                   <div>
                     <h2>Үйл ажиллагааны өгөгдөл</h2>
-                    <p>{selectedInventory.name} · {formatDate(selectedInventory.reporting_period_start)} — {formatDate(selectedInventory.reporting_period_end)}</p>
+                    <p>{selectedInventory.name} · {formatDate(selectedInventory.reporting_period_start)} — {formatDate(selectedInventory.reporting_period_end)}. Scope 2-ын ижил хэрэглээг хоёр аргачлалаар тайлагнах бол тус бүрээр нь тусдаа activity мөр оруулна; үр дүнг хооронд нь нэмэхгүй.</p>
                   </div>
                   <span className="count-chip">{activities.length} мөр</span>
                 </div>
@@ -613,7 +636,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                       <select value={factorId} onChange={(event) => setFactorId(event.target.value)} required>
                         {factors.map((factor) => (
                           <option key={factor.id} value={factor.id}>
-                            {scopeLabel(factor.scope)} · {CATEGORY_LABELS[factor.category] || factor.category} · {factor.name}
+                            {scopeLabel(factor.scope)}{factor.scope_2_method ? " · " + (factor.scope_2_method === "location_based" ? "Location-based" : "Market-based") : ""} · {CATEGORY_LABELS[factor.category] || factor.category} · {factor.name}
                           </option>
                         ))}
                       </select>
@@ -662,7 +685,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                         {activities.map((item) => (
                           <tr key={item.id}>
                             <td><strong>{item.name}</strong><small>{CATEGORY_LABELS[item.category] || item.category}</small></td>
-                            <td>{scopeLabel(item.scope)}</td>
+                            <td>{scopeLabel(item.scope)}{item.scope_2_method && <small>{item.scope_2_method === "location_based" ? "Location-based" : "Market-based"}</small>}</td>
                             <td>{formatNumber(item.activity_amount, 4)} {item.activity_unit}</td>
                             <td>{item.factor_code}<small>{item.factor_version} · {formatNumber(item.factor_value_snapshot, 8)} / {item.factor_unit_snapshot}</small></td>
                             <td><strong>{formatNumber(item.emissions_kgco2e, 4)} kg</strong></td>
@@ -688,7 +711,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                 <div className="section-heading">
                   <div>
                     <h2>Scope 1 ба Scope 2 тооцоолол</h2>
-                    <p>Сервер дээр Decimal арифметикаар тооцож, эх өгөгдөл болон коэффициентийн snapshot хадгална.</p>
+                    <p>Location-based болон market-based үр дүнг тус тусад нь Decimal арифметикаар тооцож, нэг нийлбэр болгохгүй. Эх өгөгдөл, коэффициентийн snapshot хадгална.</p>
                   </div>
                   <div className="section-actions">
                     {activities.length > 0 && (
@@ -713,8 +736,9 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                   <>
                     <div className="calculation-grid">
                       <article><span>Scope 1 · Шууд</span><strong>{formatNumber(Number(latestCalculation.scope_1_kgco2e) / 1000)} tCO₂e</strong></article>
-                      <article><span>Scope 2 · Эрчим хүч</span><strong>{formatNumber(Number(latestCalculation.scope_2_kgco2e) / 1000)} tCO₂e</strong></article>
-                      <article className="calculation-total"><span>Нийт ялгаруулалт</span><strong>{formatNumber(Number(latestCalculation.total_kgco2e) / 1000)} tCO₂e</strong></article>
+                      <article><span>Scope 2 · Location-based</span><strong>{latestCalculation.scope_2_location_based_kgco2e === null ? "—" : formatNumber(Number(latestCalculation.scope_2_location_based_kgco2e) / 1000) + " tCO₂e"}</strong></article>
+                      <article><span>Scope 2 · Market-based</span><strong>{latestCalculation.scope_2_market_based_kgco2e === null ? "—" : formatNumber(Number(latestCalculation.scope_2_market_based_kgco2e) / 1000) + " tCO₂e"}</strong></article>
+                      <article className="calculation-total"><span>Нийт · {latestCalculation.scope_2_primary_method === "location_based" ? "Location-based" : "Market-based"}</span><strong>{formatNumber(Number(latestCalculation.total_kgco2e) / 1000)} tCO₂e</strong></article>
                     </div>
                     <p className="calculation-meta">Аргачлал: {latestCalculation.methodology_version} · {new Date(latestCalculation.created_at).toLocaleString("mn-MN")}</p>
                   </>
@@ -729,7 +753,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                       <div className="history-item" key={item.id}>
                         <span>{new Date(item.created_at).toLocaleString("mn-MN")}</span>
                         <strong>{formatNumber(Number(item.total_kgco2e) / 1000)} tCO₂e</strong>
-                        <small>{item.methodology_version}</small>
+                        <small>{item.methodology_version} · {item.scope_2_primary_method === "location_based" ? "Location-based" : "Market-based"}</small>
                       </div>
                     ))}
                   </div>

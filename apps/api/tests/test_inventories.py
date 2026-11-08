@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from app.inventories import (
     activity_snapshot_is_valid,
     calculate_activity_emissions,
+    calculate_scope2_method_totals,
 )
 from app.inventory_schemas import ActivityRecordCreate, InventoryCreate
 from app.main import app
@@ -70,6 +71,7 @@ def test_activity_emissions_use_decimal_and_eight_place_rounding():
 def test_calculation_rejects_tampered_or_unverified_activity_snapshots():
     record = SimpleNamespace(
         scope="scope_2",
+        scope_2_method="location_based",
         category="purchased_electricity",
         activity_amount=Decimal("2"),
         activity_unit="kWh",
@@ -80,6 +82,7 @@ def test_calculation_rejects_tampered_or_unverified_activity_snapshots():
     factor = SimpleNamespace(
         verified=True,
         scope="scope_2",
+        scope_2_method="location_based",
         category="purchased_electricity",
         gas_basis="CO2e",
         factor_unit="kWh",
@@ -117,3 +120,30 @@ def test_tenant_routes_require_authenticated_membership():
     assert client.post(
         f"/v1/organizations/{organization_id}/inventories/{inventory_id}/calculate"
     ).status_code == 401
+
+def test_scope2_methods_are_calculated_and_reported_separately():
+    records = [
+        SimpleNamespace(scope_2_method="location_based", emissions_kgco2e=Decimal("1.25000000")),
+        SimpleNamespace(scope_2_method="market_based", emissions_kgco2e=Decimal("0.90000000")),
+    ]
+    primary, location, market, total_location, total_market = calculate_scope2_method_totals(
+        Decimal("10.00000000"),
+        records,
+        "location_based",
+    )
+    assert primary == Decimal("1.25000000")
+    assert location == Decimal("1.25000000")
+    assert market == Decimal("0.90000000")
+    assert total_location == Decimal("11.25000000")
+    assert total_market == Decimal("10.90000000")
+
+
+def test_scope2_methods_are_never_added_together_and_primary_method_is_required():
+    records = [
+        SimpleNamespace(scope_2_method="location_based", emissions_kgco2e=Decimal("1.0")),
+        SimpleNamespace(scope_2_method="market_based", emissions_kgco2e=Decimal("0.5")),
+    ]
+    with pytest.raises(ValueError):
+        calculate_scope2_method_totals(Decimal("2"), records, "invalid")
+    with pytest.raises(ValueError):
+        calculate_scope2_method_totals(Decimal("2"), [records[0]], "market_based")
