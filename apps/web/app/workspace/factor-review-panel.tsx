@@ -475,7 +475,9 @@ export function FactorReviewPanel({
                     {item.source_document && <span>{item.source_document}</span>}
                   </div>
 
-                  {item.approval_status === "pending" ? (
+                  {item.approval_status === "pending" && item.scope === "scope_2" && !item.scope_2_method ? (
+                    <p className="empty-state">Энэ хуучин коэффициентэд Scope 2 аргачлал тодорхойгүй байна. Location-based эсвэл market-based гэж шинэ хувилбараар дахин бүртгүүлнэ үү.</p>
+                  ) : item.approval_status === "pending" ? (
                     <div className="factor-review-actions">
                       <label className="field">
                         <span>Хяналтын тайлбар (дор хаяж 10 тэмдэгт)</span>
