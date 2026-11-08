@@ -213,6 +213,11 @@ def review_emission_factor(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Энэ коэффициент өмнө нь баталгаажсан бөгөөд өөрчлөх боломжгүй",
                 )
+            if factor.scope == "scope_2" and factor.scope_2_method not in {"location_based", "market_based"}:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Хуучин Scope 2 коэффициентэд аргачлал тодорхойгүй байна; location-based эсвэл market-based гэж шинэ хувилбараар дахин бүртгэнэ үү",
+                )
             _require_independent_reviewer(factor.submitted_by_subject, user["sub"])
             existing_review = db.scalar(
                 select(EmissionFactorReview).where(
