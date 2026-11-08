@@ -66,6 +66,32 @@ class EmissionFactor(Base):
     factor_year: Mapped[int] = mapped_column(Integer, nullable=False)
     version: Mapped[str] = mapped_column(String(80), nullable=False)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    submitted_by_subject: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class EmissionFactorReview(Base):
+    """One immutable human decision for an immutable emission-factor version."""
+    __tablename__ = "emission_factor_reviews"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "emission_factor_id"],
+            ["emission_factors.organization_id", "emission_factors.id"],
+            ondelete="RESTRICT",
+            name="fk_factor_review_factor_tenant",
+        ),
+        UniqueConstraint("organization_id", "emission_factor_id", name="uq_factor_review_org_factor"),
+        CheckConstraint("decision IN ('approved', 'rejected')", name="ck_factor_review_decision"),
+        CheckConstraint("length(btrim(review_note)) >= 10", name="ck_factor_review_note"),
+        Index("ix_factor_reviews_org_decision", "organization_id", "decision", "reviewed_at"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    emission_factor_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    decision: Mapped[str] = mapped_column(String(16), nullable=False)
+    reviewer_subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    review_note: Mapped[str] = mapped_column(Text, nullable=False)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
