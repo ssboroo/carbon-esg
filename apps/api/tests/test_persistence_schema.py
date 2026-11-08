@@ -89,30 +89,51 @@ def test_membership_rls_only_exposes_the_verified_subject():
     assert "EXISTS (" in organization_policy
     assert "OR id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid" not in organization_policy
 
-def test_latest_migration_matches_scope2_review_and_evidence_models():
+
+def test_alembic_migration_chain_covers_all_runtime_schema_extensions():
     from pathlib import Path
 
-    migration = (
-        Path(__file__).parents[1]
-        / "migrations"
-        / "versions"
-        / "0002_scope2_reviews_evidence.py"
-    ).read_text(encoding="utf-8")
+    versions = Path(__file__).parents[1] / "migrations" / "versions"
+    expected_chain = {
+        "0001_tenant_esg_schema.py": ('revision = "0001_tenant_esg_schema"', "down_revision = None"),
+        "0002_append_only_audit_snapshots.py": (
+            'revision = "0002_append_only_audit_snapshots"',
+            'down_revision = "0001_tenant_esg_schema"',
+        ),
+        "0003_emission_factor_reviews.py": (
+            'revision = "0003_emission_factor_reviews"',
+            'down_revision = "0002_append_only_audit_snapshots"',
+        ),
+        "0004_evidence_vault.py": (
+            'revision = "0004_evidence_vault"',
+            'down_revision = "0003_emission_factor_reviews"',
+        ),
+        "0005_scope2_dual_method_reporting.py": (
+            'revision = "0005_scope2_dual_method_reporting"',
+            'down_revision = "0004_evidence_vault"',
+        ),
+    }
+    sources = {}
+    for filename, markers in expected_chain.items():
+        source = (versions / filename).read_text(encoding="utf-8")
+        sources[filename] = source
+        for marker in markers:
+            assert marker in source
 
-    assert 'down_revision = "0001_tenant_esg_schema"' in migration
-    for table in ("emission_factor_reviews", "evidence"):
-        assert f'op.create_table(\n        "{table}"' in migration
-        assert f"_enable_tenant_rls(\"{table}\")" in migration
+    assert 'CREATE TRIGGER calculation_runs_append_only' in sources["0002_append_only_audit_snapshots.py"]
+    assert 'CREATE TRIGGER audit_events_append_only' in sources["0002_append_only_audit_snapshots.py"]
+    assert 'CREATE POLICY tenant_isolation ON emission_factor_reviews' in sources["0003_emission_factor_reviews.py"]
+    assert 'CREATE TRIGGER emission_factor_reviews_append_only' in sources["0003_emission_factor_reviews.py"]
+    assert 'CREATE POLICY tenant_isolation ON evidence' in sources["0004_evidence_vault.py"]
+    assert 'CREATE TRIGGER evidence_append_only' in sources["0004_evidence_vault.py"]
+
+    scope2 = sources["0005_scope2_dual_method_reporting.py"]
     for column in (
         "scope_2_method",
-        "submitted_by_subject",
         "scope_2_primary_method",
         "scope_2_location_based_kgco2e",
         "scope_2_market_based_kgco2e",
         "total_location_based_kgco2e",
         "total_market_based_kgco2e",
     ):
-        assert column in migration
-    for table in ("calculation_runs", "emission_factor_reviews", "evidence", "audit_events"):
-        assert f'("{table}",' in migration
-    assert "prevent_append_only_mutation" in migration
+        assert column in scope2
