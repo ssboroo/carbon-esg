@@ -105,3 +105,16 @@ The current Carbon ESG schema stores a single CO2e factor/result per activity an
 - GHG Protocol, Scope 2 public consultation feedback: https://ghgprotocol.org/scope-2-public-consultation-feedback
 - GRI 102: Climate Change 2025, Disclosure 102-6: https://www.globalreporting.org/publications/documents/english/gri-102-climate-change-2025/
 - GRI standards development status and effective dates: https://www.globalreporting.org/standards/standards-development/topic-standard-for-climate-change-and-energy/
+
+## Carbon ESG implementation note — 2026-11-08
+
+The Scope 2 dual-method implementation in PR #42 introduces:
+
+- An explicit method on each new Scope 2 emission-factor version: `location_based` or `market_based`.
+- The same method on each activity record and immutable calculation input snapshot.
+- A primary method selected on the inventory for the legacy headline total.
+- Separate location-based and market-based Scope 2 totals, and separate organization totals (Scope 1 + each alternative Scope 2 method).
+- A hard validation rule: the two alternative Scope 2 results are never added together. If the inventory's selected primary method has no activity data, calculation is rejected rather than showing a misleading partial headline.
+- Historical calculations remain immutable. Legacy Scope 2 factors/activities with no declared method are not silently assigned a basis; they must be re-registered/re-entered with a method before they can be used in a new calculation.
+
+This is the dual-method accounting foundation, not complete GRI 102: Climate Change 2025 compliance. Gas-by-gas CO2/CH4/N2O values, biogenic emissions, GWP version, base-year recalculation history, comparative periods and the complete GRI disclosure set remain outstanding.
