@@ -44,9 +44,15 @@ def upgrade() -> None:
         "inventories",
         "scope_2_primary_method IN ('location_based', 'market_based')",
     )
+    op.create_check_constraint(
+        "ck_calculation_scope_2_primary_method",
+        "calculation_runs",
+        "scope_2_primary_method IN ('location_based', 'market_based')",
+    )
 
 
 def downgrade() -> None:
+    op.drop_constraint("ck_calculation_scope_2_primary_method", "calculation_runs", type_="check")
     op.drop_constraint("ck_inventory_scope_2_primary_method", "inventories", type_="check")
     op.drop_constraint("ck_activity_scope_2_method", "activity_records", type_="check")
     op.drop_constraint("ck_factor_scope_2_method", "emission_factors", type_="check")
