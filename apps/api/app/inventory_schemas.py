@@ -14,6 +14,7 @@ class InventoryCreate(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     reporting_period_start: date
     reporting_period_end: date
+    scope_2_primary_method: Literal["location_based", "market_based"] = "location_based"
 
     @field_validator("name")
     @classmethod
@@ -55,6 +56,7 @@ class InventorySummary(BaseModel):
     reporting_period_start: date
     reporting_period_end: date
     status: str
+    scope_2_primary_method: Literal["location_based", "market_based"] = "location_based"
 
 
 class EmissionFactorSummary(BaseModel):
@@ -62,6 +64,7 @@ class EmissionFactorSummary(BaseModel):
     factor_code: str
     name: str
     scope: Scope
+    scope_2_method: Literal["location_based", "market_based"] | None
     category: str
     factor_value: Decimal
     factor_unit: str
@@ -78,6 +81,7 @@ class ActivityRecordSummary(BaseModel):
     id: UUID
     name: str
     scope: Scope
+    scope_2_method: Literal["location_based", "market_based"] | None
     category: str
     activity_amount: Decimal
     activity_unit: str
@@ -97,6 +101,11 @@ class CalculationRunSummary(BaseModel):
     inventory_id: UUID
     scope_1_kgco2e: Decimal
     scope_2_kgco2e: Decimal
+    scope_2_location_based_kgco2e: Decimal | None
+    scope_2_market_based_kgco2e: Decimal | None
+    total_location_based_kgco2e: Decimal | None
+    total_market_based_kgco2e: Decimal | None
+    scope_2_primary_method: Literal["location_based", "market_based"]
     total_kgco2e: Decimal
     methodology_version: str
     created_at: datetime
