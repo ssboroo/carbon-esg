@@ -18,6 +18,7 @@ def valid_factor_payload() -> dict:
         "factor_code": "MN-GRID-2026",
         "name": "Монголын цахилгаан эрчим хүч",
         "scope": "scope_2",
+        "scope_2_method": "location_based",
         "category": "purchased_electricity",
         "factor_value": "0.500000000000",
         "factor_unit": "kWh",
@@ -89,6 +90,7 @@ def test_only_approved_review_or_legacy_verified_factor_is_usable():
 def test_activity_snapshot_accepts_approved_review_without_mutating_factor():
     record = SimpleNamespace(
         scope="scope_2",
+        scope_2_method="location_based",
         category="purchased_electricity",
         activity_amount=Decimal("2"),
         activity_unit="kWh",
@@ -99,6 +101,7 @@ def test_activity_snapshot_accepts_approved_review_without_mutating_factor():
     factor = SimpleNamespace(
         verified=False,
         scope="scope_2",
+        scope_2_method="location_based",
         category="purchased_electricity",
         gas_basis="CO2e",
         factor_unit="kWh",
