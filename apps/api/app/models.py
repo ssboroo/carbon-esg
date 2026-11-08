@@ -49,7 +49,7 @@ class EmissionFactor(Base):
         CheckConstraint("factor_year BETWEEN 1900 AND 2200", name="ck_factor_year"),
         CheckConstraint("source_url LIKE 'https://%'", name="ck_factor_https_source"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_factor_scope"),
-        CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND (scope_2_method IS NULL OR scope_2_method IN ('location_based', 'market_based'))))", name="ck_factor_scope_2_method"),
+        CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND scope_2_method IN ('location_based', 'market_based', 'legacy_unclassified')))", name="ck_factor_scope_2_method"),
         Index("ix_factors_org_scope_category", "organization_id", "scope", "category"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -135,7 +135,7 @@ class ActivityRecord(Base):
         CheckConstraint("factor_value_snapshot >= 0 AND emissions_kgco2e >= 0", name="ck_activity_emissions_nonnegative"),
         CheckConstraint("activity_unit = factor_unit_snapshot", name="ck_activity_units_match"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_activity_scope"),
-        CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND (scope_2_method IS NULL OR scope_2_method IN ('location_based', 'market_based'))))", name="ck_activity_scope_2_method"),
+        CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND scope_2_method IN ('location_based', 'market_based', 'legacy_unclassified')))", name="ck_activity_scope_2_method"),
         Index("ix_activity_org_inventory", "organization_id", "inventory_id"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
