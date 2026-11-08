@@ -88,3 +88,19 @@ def test_membership_rls_only_exposes_the_verified_subject():
     organization_policy = migration.split("CREATE POLICY organizations_member_select", 1)[1].split('""")', 1)[0]
     assert "EXISTS (" in organization_policy
     assert "OR id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid" not in organization_policy
+
+def test_immutable_tables_use_restrictive_rls_policies():
+    from pathlib import Path
+
+    migrations = Path(__file__).parents[1] / "migrations" / "versions"
+    files = [
+        "0001_tenant_esg_schema.py",
+        "0002_append_only_audit_snapshots.py",
+        "0003_emission_factor_reviews.py",
+        "0004_evidence_vault.py",
+    ]
+    sql = "\\n".join((migrations / name).read_text(encoding="utf-8") for name in files)
+    assert "AS RESTRICTIVE FOR UPDATE USING (false) WITH CHECK (false)" in sql
+    assert "AS RESTRICTIVE FOR DELETE USING (false)" in sql
+    assert "CREATE FUNCTION" not in sql
+    assert "CREATE TRIGGER" not in sql
