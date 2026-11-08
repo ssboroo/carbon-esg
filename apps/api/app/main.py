@@ -7,12 +7,13 @@ from .auth import get_current_user
 from .calculator import calculate_inventory
 from .inventories import factor_router, router as inventories_router
 from .factor_reviews import router as factor_reviews_router
+from .evidence_routes import router as evidence_router
 from .organizations import router as organizations_router
 from .schemas import InventoryCalculationRequest, InventoryCalculationResult
 
 app = FastAPI(
     title="Carbon ESG API",
-    version="0.4.0",
+    version="0.5.0",
     description="API for auditable organizational greenhouse-gas accounting.",
 )
 
@@ -28,6 +29,7 @@ app.include_router(organizations_router)
 app.include_router(factor_router)
 app.include_router(factor_reviews_router)
 app.include_router(inventories_router)
+app.include_router(evidence_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,7 +47,7 @@ def health_check() -> dict[str, str]:
 
 @app.get("/")
 def root() -> dict[str, str]:
-    return {"name": "Carbon ESG API", "version": "0.4.0", "docs": "/docs"}
+    return {"name": "Carbon ESG API", "version": "0.5.0", "docs": "/docs"}
 
 
 @app.get("/v1/auth/me", summary="Verify the current Neon Auth identity")
