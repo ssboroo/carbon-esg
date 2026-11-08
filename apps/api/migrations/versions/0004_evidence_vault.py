@@ -38,15 +38,19 @@ def upgrade() -> None:
         USING (organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid)
         WITH CHECK (organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid)
     """)
-    op.execute("""
-        CREATE TRIGGER evidence_append_only
-        BEFORE UPDATE OR DELETE ON evidence
-        FOR EACH ROW EXECUTE FUNCTION reject_append_only_mutation()
-    """)
+    op.execute(
+        "CREATE POLICY evidence_no_update ON evidence "
+        "AS RESTRICTIVE FOR UPDATE USING (false) WITH CHECK (false)"
+    )
+    op.execute(
+        "CREATE POLICY evidence_no_delete ON evidence "
+        "AS RESTRICTIVE FOR DELETE USING (false)"
+    )
 
 
 def downgrade() -> None:
-    op.execute("DROP TRIGGER IF EXISTS evidence_append_only ON evidence")
+    op.execute("DROP POLICY IF EXISTS evidence_no_update ON evidence")
+    op.execute("DROP POLICY IF EXISTS evidence_no_delete ON evidence")
     op.execute("DROP POLICY IF EXISTS tenant_isolation ON evidence")
     op.drop_index("ix_evidence_org_activity", table_name="evidence")
     op.drop_index("ix_evidence_org_created", table_name="evidence")

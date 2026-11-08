@@ -181,16 +181,15 @@ def upgrade() -> None:
         )
     """)
 
-    # Factor records are versioned, not edited in place. Add a new version for corrections.
-    op.execute("""CREATE FUNCTION prevent_emission_factor_mutation() RETURNS trigger AS $$
-    BEGIN RAISE EXCEPTION 'Emission factors are immutable; insert a new version'; END;
-    $$ LANGUAGE plpgsql""")
-    op.execute("CREATE TRIGGER emission_factors_immutable BEFORE UPDATE OR DELETE ON emission_factors FOR EACH ROW EXECUTE FUNCTION prevent_emission_factor_mutation()")
+    # Versioned factor rows are immutable for the runtime role. Restrictive
+    # RLS policies prevent UPDATE/DELETE even when a tenant policy permits reads.
+    op.execute("CREATE POLICY emission_factors_no_update ON emission_factors AS RESTRICTIVE FOR UPDATE USING (false) WITH CHECK (false)")
+    op.execute("CREATE POLICY emission_factors_no_delete ON emission_factors AS RESTRICTIVE FOR DELETE USING (false)")
 
 
 def downgrade() -> None:
-    op.execute("DROP TRIGGER IF EXISTS emission_factors_immutable ON emission_factors")
-    op.execute("DROP FUNCTION IF EXISTS prevent_emission_factor_mutation()")
+    op.execute("DROP POLICY IF EXISTS emission_factors_no_update ON emission_factors")
+    op.execute("DROP POLICY IF EXISTS emission_factors_no_delete ON emission_factors")
     for table in ("audit_events", "calculation_runs", "activity_records", "inventories", "emission_factors", "organization_memberships"):
         op.execute(sa.text(f"DROP POLICY IF EXISTS tenant_isolation ON {table}"))
         op.drop_table(table)
