@@ -53,3 +53,18 @@ def test_organization_rls_allows_verified_members_to_discover_workspaces():
     assert "CREATE POLICY organizations_member_select ON organizations" in migration
     assert "membership.user_subject = NULLIF(current_setting('app.current_user_subject', true), '')" in migration
     assert "CREATE POLICY organizations_create_selected ON organizations" in migration
+
+def test_scope2_method_fields_are_persisted_separately():
+    factors = Base.metadata.tables["emission_factors"]
+    activities = Base.metadata.tables["activity_records"]
+    inventories = Base.metadata.tables["inventories"]
+    runs = Base.metadata.tables["calculation_runs"]
+    assert "scope_2_method" in factors.columns
+    assert "scope_2_method" in activities.columns
+    assert "scope_2_primary_method" in inventories.columns
+    assert {
+        "scope_2_location_based_kgco2e",
+        "scope_2_market_based_kgco2e",
+        "total_location_based_kgco2e",
+        "total_market_based_kgco2e",
+    } <= set(runs.columns.keys())
