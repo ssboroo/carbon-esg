@@ -71,6 +71,7 @@ class EmissionFactorSummary(BaseModel):
     source_document: str | None
     factor_year: int
     version: str
+    approval_status: Literal["approved"] = "approved"
 
 
 class ActivityRecordSummary(BaseModel):
