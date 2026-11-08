@@ -146,8 +146,4 @@ def test_scope2_methods_are_never_added_together_and_primary_method_is_required(
     with pytest.raises(ValueError):
         calculate_scope2_method_totals(Decimal("2"), records, "invalid")
     with pytest.raises(ValueError):
-        calculate_scope2_method_totals(Decimal("2"), records, "market_based") if False else calculate_scope2_method_totals(
-            Decimal("2"),
-            [records[0]],
-            "market_based",
-        )
+        calculate_scope2_method_totals(Decimal("2"), [records[0]], "market_based")
