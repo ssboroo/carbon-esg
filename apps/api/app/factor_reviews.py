@@ -22,6 +22,20 @@ router = APIRouter(
 REVIEW_ROLES = {"owner", "admin"}
 
 
+def _require_independent_reviewer(submitted_by_subject: str | None, reviewer_subject: str) -> None:
+    """Enforce a four-eyes control: submitters cannot approve their own factor."""
+    if not submitted_by_subject:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Коэффициентийн бүртгэгч тодорхойгүй тул дахин бүртгүүлэх шаардлагатай",
+        )
+    if submitted_by_subject == reviewer_subject:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Коэффициент бүртгэсэн хэрэглэгч өөрийн бүртгэлийг батлах боломжгүй",
+        )
+
+
 def _queue_item(factor: EmissionFactor, review: EmissionFactorReview | None) -> FactorReviewQueueItem:
     return FactorReviewQueueItem(
         id=factor.id,
@@ -196,6 +210,7 @@ def review_emission_factor(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Энэ коэффициент өмнө нь баталгаажсан бөгөөд өөрчлөх боломжгүй",
                 )
+            _require_independent_reviewer(factor.submitted_by_subject, user["sub"])
             existing_review = db.scalar(
                 select(EmissionFactorReview).where(
                     EmissionFactorReview.organization_id == organization_id,
