@@ -148,8 +148,7 @@ def upgrade() -> None:
         CREATE POLICY organizations_member_select ON organizations
         FOR SELECT
         USING (
-            id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid
-            OR EXISTS (
+            EXISTS (
                 SELECT 1
                 FROM organization_memberships membership
                 WHERE membership.organization_id = organizations.id
@@ -174,10 +173,10 @@ def upgrade() -> None:
         CREATE POLICY membership_self_or_tenant ON organization_memberships
         USING (
             user_subject = NULLIF(current_setting('app.current_user_subject', true), '')
-            OR organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid
         )
         WITH CHECK (
             organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid
+            AND user_subject = NULLIF(current_setting('app.current_user_subject', true), '')
         )
     """)
 
