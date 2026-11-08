@@ -174,6 +174,30 @@ class CalculationRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class Evidence(Base):
+    """Immutable metadata for malware-scanned files stored in private object storage."""
+    __tablename__ = "evidence"
+    __table_args__ = (
+        UniqueConstraint("storage_key", name="uq_evidence_storage_key"),
+        UniqueConstraint("organization_id", "id", name="uq_evidence_org_id"),
+        CheckConstraint("size_bytes BETWEEN 1 AND 15728640", name="ck_evidence_size"),
+        CheckConstraint("scan_status = 'clean'", name="ck_evidence_clean_only"),
+        Index("ix_evidence_org_created", "organization_id", "created_at"),
+        Index("ix_evidence_org_activity", "organization_id", "activity_id"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
+    activity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("activity_records.id", ondelete="SET NULL"))
+    uploaded_by_subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    original_filename: Mapped[str] = mapped_column(String(180), nullable=False)
+    media_type: Mapped[str] = mapped_column(String(120), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    scan_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+
 class AuditEvent(Base):
     __tablename__ = "audit_events"
     __table_args__ = (
