@@ -3,6 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth/client";
 import { FactorReviewPanel } from "./factor-review-panel";
+import { EvidencePanel } from "./evidence-panel";
 
 type Organization = { id: string; name: string; slug: string; role: string };
 type Inventory = {
@@ -123,7 +124,8 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
 
     const headers = new Headers(init.headers);
     headers.set("Authorization", "Bearer " + token);
-    if (init.body && !headers.has("Content-Type")) {
+    const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+    if (init.body && !headers.has("Content-Type") && !isFormData) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -396,6 +398,41 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
     setNotice("");
   }
 
+  function exportInventoryCsv() {
+    if (!selectedOrganization || !selectedInventory || activities.length === 0) return;
+    const rows: (string | number)[][] = [
+      ["CARBON ESG — Тайлангийн өгөгдөл"],
+      ["Байгууллага", selectedOrganization.name],
+      ["Тайлан", selectedInventory.name],
+      ["Эхлэх огноо", selectedInventory.reporting_period_start],
+      ["Дуусах огноо", selectedInventory.reporting_period_end],
+      ["Сүүлийн аргачлал", latestCalculation?.methodology_version || "Тооцоолоогүй"],
+      ["Сүүлийн тооцооллын огноо", latestCalculation?.created_at || ""],
+      [],
+      ["Үйл ажиллагаа", "Scope", "Ангилал", "Хэмжээ", "Нэгж", "Factor code", "Factor version", "Factor value", "Factor denominator unit", "Source", "Source URL", "Factor year", "Ялгаруулалт (kgCO2e)"],
+      ...activities.map((item) => [
+        item.name, item.scope, item.category, item.activity_amount, item.activity_unit,
+        item.factor_code, item.factor_version, item.factor_value_snapshot,
+        item.factor_unit_snapshot, item.factor_source_name, item.factor_source_url,
+        item.factor_year, item.emissions_kgco2e
+      ])
+    ];
+    const csv = rows.map((row) => row.map((value) => {
+      const raw = String(value ?? "");
+      const safe = /^[=+@\\-]/.test(raw) ? "'" + raw : raw;
+      return '"' + safe.replace(/"/g, '""') + '"';
+    }).join(",")).join("\\r\\n");
+    const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "carbon-esg-" + selectedInventory.reporting_period_start + "-" + selectedInventory.reporting_period_end + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="workspace-dashboard">
       <div className="workspace-intro">
@@ -638,22 +675,38 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                 )}
               </section>
 
+              {selectedOrganization && (
+                <EvidencePanel
+                  organizationId={selectedOrganization.id}
+                  activities={activities.map((item) => ({ id: item.id, name: item.name }))}
+                  canWrite={canWrite}
+                  apiRequest={apiRequest}
+                />
+              )}
+
               <section className="workspace-panel">
                 <div className="section-heading">
                   <div>
                     <h2>Scope 1 ба Scope 2 тооцоолол</h2>
                     <p>Сервер дээр Decimal арифметикаар тооцож, эх өгөгдөл болон коэффициентийн snapshot хадгална.</p>
                   </div>
-                  {canWrite && (
-                    <button
-                      type="button"
-                      className="button-primary"
-                      onClick={calculateInventory}
-                      disabled={busy !== "" || activities.length === 0}
-                    >
-                      {busy === "calculate" ? "Тооцоолж байна…" : "Тооцоолол хийх"}
-                    </button>
-                  )}
+                  <div className="section-actions">
+                    {activities.length > 0 && (
+                      <button type="button" className="button-secondary" onClick={exportInventoryCsv}>
+                        CSV тайлан татах
+                      </button>
+                    )}
+                    {canWrite && (
+                      <button
+                        type="button"
+                        className="button-primary"
+                        onClick={calculateInventory}
+                        disabled={busy !== "" || activities.length === 0}
+                      >
+                        {busy === "calculate" ? "Тооцоолж байна…" : "Тооцоолол хийх"}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {latestCalculation ? (
