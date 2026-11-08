@@ -1,6 +1,7 @@
 name: Deployment validation
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - "apps/api/**"
@@ -31,6 +32,13 @@ jobs:
       - run: python -m pytest -q
       - name: Validate Alembic migration SQL without connecting to a database
         run: DATABASE_URL_UNPOOLED=postgresql://test:test@localhost/carbon_esg alembic upgrade head --sql > /tmp/carbon-esg-migration.sql
+      - name: Upload reviewed migration SQL artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: carbon-esg-migration-sql
+          path: /tmp/carbon-esg-migration.sql
+          if-no-files-found: error
+          retention-days: 7
 
   web-build:
     runs-on: ubuntu-latest
