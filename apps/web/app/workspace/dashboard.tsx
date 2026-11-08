@@ -608,7 +608,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                 <div className="section-heading">
                   <div>
                     <h2>Үйл ажиллагааны өгөгдөл</h2>
-                    <p>{selectedInventory.name} · {formatDate(selectedInventory.reporting_period_start)} — {formatDate(selectedInventory.reporting_period_end)}</p>
+                    <p>{selectedInventory.name} · {formatDate(selectedInventory.reporting_period_start)} — {formatDate(selectedInventory.reporting_period_end)}. Scope 2-ын ижил хэрэглээг хоёр аргачлалаар тайлагнах бол тус бүрээр нь тусдаа activity мөр оруулна; үр дүнг хооронд нь нэмэхгүй.</p>
                   </div>
                   <span className="count-chip">{activities.length} мөр</span>
                 </div>
@@ -711,7 +711,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                 <div className="section-heading">
                   <div>
                     <h2>Scope 1 ба Scope 2 тооцоолол</h2>
-                    <p>Сервер дээр Decimal арифметикаар тооцож, эх өгөгдөл болон коэффициентийн snapshot хадгална.</p>
+                    <p>Location-based болон market-based үр дүнг тус тусад нь Decimal арифметикаар тооцож, нэг нийлбэр болгохгүй. Эх өгөгдөл, коэффициентийн snapshot хадгална.</p>
                   </div>
                   <div className="section-actions">
                     {activities.length > 0 && (
