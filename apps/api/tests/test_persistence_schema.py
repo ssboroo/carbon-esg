@@ -105,3 +105,16 @@ def test_alembic_revision_ids_fit_default_version_column():
             and isinstance(node.value.value, str)
         )
         assert len(revision) <= 32, f"{migration_path.name} revision ID is too long"
+
+def test_legacy_scope2_rows_are_marked_and_new_unclassified_rows_are_blocked():
+    from pathlib import Path
+
+    migration = (
+        Path(__file__).parents[1]
+        / "migrations"
+        / "versions"
+        / "0005_scope2_dual_method_reporting.py"
+    ).read_text(encoding="utf-8")
+    assert "SET scope_2_method = 'legacy_unclassified'" in migration
+    assert "AS RESTRICTIVE FOR INSERT WITH CHECK" in migration
+    assert "scope_2_method IN ('location_based', 'market_based')" in migration
