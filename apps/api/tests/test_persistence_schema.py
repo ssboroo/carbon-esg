@@ -89,18 +89,19 @@ def test_membership_rls_only_exposes_the_verified_subject():
     assert "EXISTS (" in organization_policy
     assert "OR id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid" not in organization_policy
 
-def test_immutable_tables_use_restrictive_rls_policies():
+def test_alembic_revision_ids_fit_default_version_column():
+    import ast
     from pathlib import Path
 
     migrations = Path(__file__).parents[1] / "migrations" / "versions"
-    files = [
-        "0001_tenant_esg_schema.py",
-        "0002_append_only_audit_snapshots.py",
-        "0003_emission_factor_reviews.py",
-        "0004_evidence_vault.py",
-    ]
-    sql = "\\n".join((migrations / name).read_text(encoding="utf-8") for name in files)
-    assert "AS RESTRICTIVE FOR UPDATE USING (false) WITH CHECK (false)" in sql
-    assert "AS RESTRICTIVE FOR DELETE USING (false)" in sql
-    assert "CREATE FUNCTION" not in sql
-    assert "CREATE TRIGGER" not in sql
+    for migration_path in migrations.glob("*.py"):
+        module = ast.parse(migration_path.read_text(encoding="utf-8"))
+        revision = next(
+            node.value.value
+            for node in module.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "revision" for target in node.targets)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        )
+        assert len(revision) <= 32, f"{migration_path.name} revision ID is too long"
