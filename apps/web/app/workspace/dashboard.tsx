@@ -583,7 +583,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                     >
                       <span className="inventory-item-main">
                         <strong>{item.name}</strong>
-                        <small>{formatDate(item.reporting_period_start)} — {formatDate(item.reporting_period_end)}</small>
+                        <small>{formatDate(item.reporting_period_start)} — {formatDate(item.reporting_period_end)} · Scope 2 primary: {item.scope_2_primary_method === "location_based" ? "Location-based" : "Market-based"}</small>
                       </span>
                       <span className="status-chip">{item.status === "draft" ? "Ноорог" : item.status}</span>
                     </button>
@@ -636,7 +636,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                       <select value={factorId} onChange={(event) => setFactorId(event.target.value)} required>
                         {factors.map((factor) => (
                           <option key={factor.id} value={factor.id}>
-                            {scopeLabel(factor.scope)} · {CATEGORY_LABELS[factor.category] || factor.category} · {factor.name}
+                            {scopeLabel(factor.scope)}{factor.scope_2_method ? " · " + (factor.scope_2_method === "location_based" ? "Location-based" : "Market-based") : ""} · {CATEGORY_LABELS[factor.category] || factor.category} · {factor.name}
                           </option>
                         ))}
                       </select>
@@ -753,7 +753,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                       <div className="history-item" key={item.id}>
                         <span>{new Date(item.created_at).toLocaleString("mn-MN")}</span>
                         <strong>{formatNumber(Number(item.total_kgco2e) / 1000)} tCO₂e</strong>
-                        <small>{item.methodology_version}</small>
+                        <small>{item.methodology_version} · {item.scope_2_primary_method === "location_based" ? "Location-based" : "Market-based"}</small>
                       </div>
                     ))}
                   </div>
