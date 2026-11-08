@@ -39,3 +39,17 @@ def test_calculation_runs_keep_reproducible_input_snapshot():
     table = Base.metadata.tables["calculation_runs"]
     assert "input_snapshot" in table.columns
     assert "methodology_version" in table.columns
+
+def test_organization_rls_allows_verified_members_to_discover_workspaces():
+    from pathlib import Path
+
+    migration = (
+        Path(__file__).parents[1]
+        / "migrations"
+        / "versions"
+        / "0001_tenant_esg_schema.py"
+    ).read_text(encoding="utf-8")
+
+    assert "CREATE POLICY organizations_member_select ON organizations" in migration
+    assert "membership.user_subject = NULLIF(current_setting('app.current_user_subject', true), '')" in migration
+    assert "CREATE POLICY organizations_create_selected ON organizations" in migration
