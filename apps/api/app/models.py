@@ -49,6 +49,7 @@ class EmissionFactor(Base):
         CheckConstraint("factor_year BETWEEN 1900 AND 2200", name="ck_factor_year"),
         CheckConstraint("source_url LIKE 'https://%'", name="ck_factor_https_source"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_factor_scope"),
+        CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND (scope_2_method IS NULL OR scope_2_method IN ('location_based', 'market_based'))))", name="ck_factor_scope_2_method"),
         Index("ix_factors_org_scope_category", "organization_id", "scope", "category"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -102,6 +103,7 @@ class Inventory(Base):
         UniqueConstraint("organization_id", "id", name="uq_inventory_org_id"),
         CheckConstraint("reporting_period_end >= reporting_period_start", name="ck_inventory_period"),
         CheckConstraint("status IN ('draft', 'review', 'approved')", name="ck_inventory_status"),
+        CheckConstraint("scope_2_primary_method IN ('location_based', 'market_based')", name="ck_inventory_scope_2_primary_method"),
         Index("ix_inventories_org_period", "organization_id", "reporting_period_start", "reporting_period_end"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -133,6 +135,7 @@ class ActivityRecord(Base):
         CheckConstraint("factor_value_snapshot >= 0 AND emissions_kgco2e >= 0", name="ck_activity_emissions_nonnegative"),
         CheckConstraint("activity_unit = factor_unit_snapshot", name="ck_activity_units_match"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_activity_scope"),
+        CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND (scope_2_method IS NULL OR scope_2_method IN ('location_based', 'market_based'))))", name="ck_activity_scope_2_method"),
         Index("ix_activity_org_inventory", "organization_id", "inventory_id"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -164,6 +167,7 @@ class CalculationRun(Base):
         Index("ix_calculation_org_inventory_created", "organization_id", "inventory_id", "created_at"),
         CheckConstraint("scope_1_kgco2e >= 0 AND scope_2_kgco2e >= 0", name="ck_calculation_scopes_nonnegative"),
         CheckConstraint("total_kgco2e = scope_1_kgco2e + scope_2_kgco2e", name="ck_calculation_total_matches_scopes"),
+        CheckConstraint("scope_2_primary_method IN ('location_based', 'market_based')", name="ck_calculation_scope_2_primary_method"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
