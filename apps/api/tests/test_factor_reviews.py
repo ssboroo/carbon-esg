@@ -2,10 +2,12 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from app.factor_schemas import EmissionFactorCreate, FactorReviewDecision
+from app.factor_reviews import _require_independent_reviewer
 from app.factor_status import factor_approval_status, is_factor_approved
 from app.inventories import activity_snapshot_is_valid
 from app.main import app
@@ -123,3 +125,19 @@ def test_factor_review_endpoints_require_authenticated_tenant_membership():
             "note": "Эх сурвалж, он, газарзүй болон нэгжийг шалгав.",
         },
     ).status_code == 401
+
+
+def test_factor_submitter_cannot_review_own_submission():
+    with pytest.raises(HTTPException) as error:
+        _require_independent_reviewer("user-submitter", "user-submitter")
+    assert error.value.status_code == 403
+
+
+def test_factor_review_requires_known_submitter_identity():
+    with pytest.raises(HTTPException) as error:
+        _require_independent_reviewer(None, "user-reviewer")
+    assert error.value.status_code == 409
+
+
+def test_independent_factor_reviewer_is_allowed():
+    _require_independent_reviewer("user-submitter", "user-reviewer")
