@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-11-08  
 **Repository:** `ssboroo/carbon-esg`  
-**Main commit reviewed:** `62ac209632a988fbcbdef0b2d2a2cfe15583af0c`
+**Main commit reviewed:** `ae971ba678a4d570d49aa8fdf448158bd8337ff4`
 
 ## Executive verdict
 
@@ -17,7 +17,7 @@ However, **there is still no verified live Carbon ESG deployment and no applicat
 | Area | Integrated capability | Remaining limitation |
 |---|---|---|
 | Authentication | Neon Managed Auth sign-up/sign-in integration; FastAPI EdDSA JWT/JWKS verification | Production trusted origin, cookie and end-to-end device testing not verified |
-| Tenant security | PostgreSQL tenant schema, transaction-local identity/tenant context, forced RLS, tenant-aware foreign keys | Must validate on the intended DB using the actual restricted runtime role |
+| Tenant security | PostgreSQL tenant schema, transaction-local identity/tenant context, forced RLS, membership-only organization discovery, tenant-aware foreign keys, restrictive RLS for immutable rows | Must validate on the intended DB using the actual restricted runtime role |
 | Organizations | Create/list organization; initial owner membership; audit event | Invitations, member management and full account lifecycle not complete |
 | Inventories | Reporting-period inventory and activity records persisted | Workflow approvals, reporting boundaries and richer data quality controls remain |
 | Factors | Provenance-rich factor submission, independent owner/admin review, four-eyes rule | Official Mongolian factor library is not seeded; values must be source-verified by humans |
@@ -50,12 +50,12 @@ Blueprint review: https://dashboard.render.com/blueprint/exs-dbo3bqjl550s738kitv
 ### Neon
 
 - A Neon project for Carbon ESG exists.
-- The default `main` branch was inspected read-only and contains Neon Auth/system tables, but no Carbon ESG application tables.
+- The default `main` branch contains Neon Auth/system tables, but no Carbon ESG application tables. A restricted `carbon_esg_app` role has been created on this branch; it is `NOSUPERUSER`, `NOBYPASSRLS`, `NOCREATEROLE`, `NOCREATEDB`, has `USAGE` on `public`, and no `CREATE` privilege.
 - A separate development branch contains the earlier seven-table tenant schema and a `carbon_esg_app` role with `rolsuper=false` and `rolbypassrls=false`.
 - That development branch is not the current full schema: it predates the factor-review, Evidence Vault and Scope 2 dual-method migrations. Its organization discovery policy also predates the corrected membership-based SELECT policy.
 - No verified Alembic revision row was found on that development branch.
 - `neondb_owner` has RLS bypass privileges and must never be used as the API runtime role.
-- No migration was applied to the default Neon `main` branch.
+- The complete Alembic schema (head `0005_scope2_methods`) has been prepared and tested on an isolated temporary Neon branch, but has **not** been applied to the default Neon `main` branch. The restricted runtime role was tested against two organizations: user A could not read organization B or B's memberships; factor update/delete was blocked; new Scope 2 rows without a valid method were rejected.
 
 ## P0 — blockers before real customer data
 
@@ -102,4 +102,4 @@ Blueprint review: https://dashboard.render.com/blueprint/exs-dbo3bqjl550s738kitv
 
 ## Bottom line
 
-The project is now an integrated MVP codebase, not merely a stateless prototype. The remaining gap is **safe infrastructure activation and complete accounting/reporting coverage**. Code merged to GitHub is not proof of production operation. Until Neon migrations, Render deployment, real auth, tenant isolation, private evidence storage and independent reviews are verified, the correct status remains **development / controlled demo only**.
+The project is now an integrated MVP codebase, not merely a stateless prototype. A full Alembic schema has also been exercised on a temporary Neon branch using the intended restricted runtime role. The remaining gap is **safe infrastructure activation and complete accounting/reporting coverage**. Code merged to GitHub is not proof of production operation. Until Neon migrations, Render deployment, real auth, tenant isolation, private evidence storage and independent reviews are verified, the correct status remains **development / controlled demo only**.
