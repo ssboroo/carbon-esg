@@ -17,6 +17,8 @@ The API currently supports a first-pass Scope 1 and Scope 2 calculation endpoint
 
 - `GET /health` — service health
 - `GET /v1/auth/me` — protected identity verification; requires `Authorization: Bearer <Neon JWT>`
+- `GET /v1/organizations` — list organizations for the verified user (requires migrated PostgreSQL schema and `DATABASE_URL`)
+- `POST /v1/organizations` — create an organization and its initial owner membership atomically (requires migrated PostgreSQL schema and `DATABASE_URL`)
 - `POST /v1/calculations` — calculate an inventory from supplied activity records and emission factors
 - `GET /docs` — interactive API documentation
 
@@ -54,7 +56,7 @@ The factor in this example is illustrative only and must not be used for actual 
 
 The API now contains a tenant-scoped schema for organizations, memberships, versioned emission factors, inventories, activity records, calculation snapshots, and audit events. PostgreSQL row-level security requires transaction-local identity and organization context; membership discovery is scoped to the authenticated subject. Composite foreign keys prevent records from referencing another organization's inventory or emission factor. Emission-factor rows are immutable: corrections must be inserted as a new version.
 
-Neon Managed Better Auth is provisioned on the Neon default branch. The web app includes email sign-up/sign-in, same-origin auth proxy, protected workspace, and sign-out. FastAPI validates EdDSA JWT signature, issuer, audience, expiry, and subject. The `GET /v1/auth/me` endpoint is the first protected integration check. Organization membership authorization is not yet wired. Do not expose tenant data routes until a verified identity-to-organization membership dependency sets both RLS contexts on every transaction. Use a restricted runtime database role; do not run the app as a superuser or a role with BYPASSRLS.
+Neon Managed Better Auth is provisioned on the Neon default branch. The web app includes email sign-up/sign-in, same-origin auth proxy, protected workspace, and sign-out. FastAPI validates EdDSA JWT signature, issuer, audience, expiry, and subject. The `GET /v1/auth/me` endpoint is the first protected integration check. Organization list/create routes now use transaction-local identity and tenant RLS context. They remain unavailable until the tenant migration is applied and a restricted runtime database role is configured. Do not expose tenant data routes until a verified identity-to-organization membership dependency sets both RLS contexts on every transaction. Use a restricted runtime database role; do not run the app as a superuser or a role with BYPASSRLS.
 
 Set `DATABASE_URL` to Neon's pooled connection string for runtime requests. Set `DATABASE_URL_UNPOOLED` to the direct (non-pooler) string for migrations. Never commit either secret.
 
