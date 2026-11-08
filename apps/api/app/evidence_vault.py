@@ -162,8 +162,8 @@ def upload_evidence(
     safe_name = safe_filename(filename)
     media_type = detect_evidence_type(safe_name, content)
     digest = hashlib.sha256(content).hexdigest()
-    client = storage_client or _s3_client()
-    bucket = _bucket_name()
+    client = storage_client
+    bucket = ""
     evidence_id = uuid.uuid4()
     uploaded_key: str | None = None
     infected = False
@@ -211,6 +211,8 @@ def upload_evidence(
                 ))
                 infected = True
             else:
+                client = client or _s3_client()
+                bucket = _bucket_name()
                 storage_key = f"organizations/{organization_id}/evidence/{evidence_id}"
                 put_args = {
                     "Bucket": bucket,
@@ -307,7 +309,7 @@ def create_evidence_download_url(
     storage_client=None,
     request_id: str | None = None,
 ) -> str:
-    client = storage_client or _s3_client()
+    client = storage_client
     with db.begin():
         _membership_and_tenant(db, organization_id, user_subject, write=False)
         evidence = db.scalar(
@@ -320,6 +322,7 @@ def create_evidence_download_url(
             raise HTTPException(status_code=404, detail="Evidence not found")
         if evidence.scan_status != "clean":
             raise HTTPException(status_code=409, detail="Evidence is not cleared for download")
+        client = client or _s3_client()
         url = client.generate_presigned_url(
             "get_object",
             Params={
