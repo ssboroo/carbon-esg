@@ -167,6 +167,7 @@ def upgrade() -> None:
         _rls(table)
 
     # Users must be able to discover their own memberships before a tenant is selected.
+    # Membership discovery is self-only: selecting a tenant ID must never reveal its other members.
     op.execute("ALTER TABLE organization_memberships ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE organization_memberships FORCE ROW LEVEL SECURITY")
     op.execute("""
