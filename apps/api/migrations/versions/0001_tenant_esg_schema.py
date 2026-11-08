@@ -170,7 +170,7 @@ def upgrade() -> None:
     op.execute("ALTER TABLE organization_memberships ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE organization_memberships FORCE ROW LEVEL SECURITY")
     op.execute("""
-        CREATE POLICY membership_self_or_tenant ON organization_memberships
+        CREATE POLICY membership_self_only ON organization_memberships
         USING (
             user_subject = NULLIF(current_setting('app.current_user_subject', true), '')
         )
