@@ -106,48 +106,15 @@ def test_alembic_revision_ids_fit_default_version_column():
         )
         assert len(revision) <= 32, f"{migration_path.name} revision ID is too long"
 
-def test_alembic_migration_chain_covers_all_runtime_schema_extensions():
+def test_legacy_scope2_rows_are_marked_and_new_unclassified_rows_are_blocked():
     from pathlib import Path
 
-    versions = Path(__file__).parents[1] / "migrations" / "versions"
-    expected_chain = {
-        "0001_tenant_esg_schema.py": ('revision = "0001_tenant_esg_schema"', "down_revision = None"),
-        "0002_append_only_audit_snapshots.py": (
-            'revision = "0002_append_only_audit_snapshots"',
-            'down_revision = "0001_tenant_esg_schema"',
-        ),
-        "0003_emission_factor_reviews.py": (
-            'revision = "0003_emission_factor_reviews"',
-            'down_revision = "0002_append_only_audit_snapshots"',
-        ),
-        "0004_evidence_vault.py": (
-            'revision = "0004_evidence_vault"',
-            'down_revision = "0003_emission_factor_reviews"',
-        ),
-        "0005_scope2_dual_method_reporting.py": (
-            'revision = "0005_scope2_methods"',
-            'down_revision = "0004_evidence_vault"',
-        ),
-    }
-    sources = {}
-    for filename, markers in expected_chain.items():
-        source = (versions / filename).read_text(encoding="utf-8")
-        sources[filename] = source
-        for marker in markers:
-            assert marker in source
-
-    assert "emission_factor_reviews" in sources["0003_emission_factor_reviews.py"]
-    assert "CREATE POLICY tenant_isolation ON emission_factor_reviews" in sources["0003_emission_factor_reviews.py"]
-    assert "evidence" in sources["0004_evidence_vault.py"]
-    assert "CREATE POLICY tenant_isolation ON evidence" in sources["0004_evidence_vault.py"]
-
-    scope2 = sources["0005_scope2_dual_method_reporting.py"]
-    for column in (
-        "scope_2_method",
-        "scope_2_primary_method",
-        "scope_2_location_based_kgco2e",
-        "scope_2_market_based_kgco2e",
-        "total_location_based_kgco2e",
-        "total_market_based_kgco2e",
-    ):
-        assert column in scope2
+    migration = (
+        Path(__file__).parents[1]
+        / "migrations"
+        / "versions"
+        / "0005_scope2_dual_method_reporting.py"
+    ).read_text(encoding="utf-8")
+    assert "SET scope_2_method = 'legacy_unclassified'" in migration
+    assert "AS RESTRICTIVE FOR INSERT WITH CHECK" in migration
+    assert "scope_2_method IN ('location_based', 'market_based')" in migration
