@@ -54,16 +54,18 @@ def upgrade() -> None:
         """
     )
     op.execute(
-        """
-        CREATE TRIGGER emission_factor_reviews_append_only
-        BEFORE UPDATE OR DELETE ON emission_factor_reviews
-        FOR EACH ROW EXECUTE FUNCTION reject_append_only_mutation()
-        """
+        "CREATE POLICY emission_factor_reviews_no_update ON emission_factor_reviews "
+        "AS RESTRICTIVE FOR UPDATE USING (false) WITH CHECK (false)"
+    )
+    op.execute(
+        "CREATE POLICY emission_factor_reviews_no_delete ON emission_factor_reviews "
+        "AS RESTRICTIVE FOR DELETE USING (false)"
     )
 
 
 def downgrade() -> None:
-    op.execute("DROP TRIGGER IF EXISTS emission_factor_reviews_append_only ON emission_factor_reviews")
+    op.execute("DROP POLICY IF EXISTS emission_factor_reviews_no_update ON emission_factor_reviews")
+    op.execute("DROP POLICY IF EXISTS emission_factor_reviews_no_delete ON emission_factor_reviews")
     op.execute("DROP POLICY IF EXISTS tenant_isolation ON emission_factor_reviews")
     op.drop_index("ix_factor_reviews_org_decision", table_name="emission_factor_reviews")
     op.drop_table("emission_factor_reviews")
