@@ -3,7 +3,7 @@
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0005_scope2_dual_method_reporting"
+revision = "0005_scope2_methods"
 down_revision = "0004_evidence_vault"
 branch_labels = None
 depends_on = None
