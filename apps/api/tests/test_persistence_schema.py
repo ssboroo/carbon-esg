@@ -68,3 +68,20 @@ def test_scope2_method_fields_are_persisted_separately():
         "total_location_based_kgco2e",
         "total_market_based_kgco2e",
     } <= set(runs.columns.keys())
+
+def test_membership_rls_only_exposes_the_verified_subject():
+    from pathlib import Path
+
+    migration = (
+        Path(__file__).parents[1]
+        / "migrations"
+        / "versions"
+        / "0001_tenant_esg_schema.py"
+    ).read_text(encoding="utf-8")
+
+    membership_policy = migration.split("CREATE POLICY membership_self_or_tenant", 1)[1]
+    membership_policy = membership_policy.split('"""', 1)[0]
+    assert "USING (" in membership_policy
+    assert "user_subject = NULLIF(current_setting('app.current_user_subject', true), '')" in membership_policy
+    assert "OR organization_id" not in membership_policy
+    assert "AND user_subject = NULLIF(current_setting('app.current_user_subject', true), '')" in membership_policy
