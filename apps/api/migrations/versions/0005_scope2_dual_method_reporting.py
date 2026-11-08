@@ -21,6 +21,7 @@ def upgrade() -> None:
             server_default="location_based",
         ),
     )
+    op.add_column("calculation_runs", sa.Column("scope_2_primary_method", sa.String(24), nullable=False, server_default="location_based"))
     op.add_column("calculation_runs", sa.Column("scope_2_location_based_kgco2e", sa.Numeric(24, 8), nullable=True))
     op.add_column("calculation_runs", sa.Column("scope_2_market_based_kgco2e", sa.Numeric(24, 8), nullable=True))
     op.add_column("calculation_runs", sa.Column("total_location_based_kgco2e", sa.Numeric(24, 8), nullable=True))
@@ -50,6 +51,7 @@ def downgrade() -> None:
     op.drop_constraint("ck_activity_scope_2_method", "activity_records", type_="check")
     op.drop_constraint("ck_factor_scope_2_method", "emission_factors", type_="check")
     op.drop_column("calculation_runs", "total_market_based_kgco2e")
+    op.drop_column("calculation_runs", "scope_2_primary_method")
     op.drop_column("calculation_runs", "total_location_based_kgco2e")
     op.drop_column("calculation_runs", "scope_2_market_based_kgco2e")
     op.drop_column("calculation_runs", "scope_2_location_based_kgco2e")
