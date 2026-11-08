@@ -170,6 +170,7 @@ class CalculationRun(Base):
     inventory_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     scope_1_kgco2e: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     scope_2_kgco2e: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
+    scope_2_primary_method: Mapped[str] = mapped_column(String(24), nullable=False, default="location_based")
     scope_2_location_based_kgco2e: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
     scope_2_market_based_kgco2e: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
     total_location_based_kgco2e: Mapped[Decimal | None] = mapped_column(Numeric(24, 8))
