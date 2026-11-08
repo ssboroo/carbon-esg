@@ -1,118 +1,101 @@
-# Carbon ESG
+# CARBON ESG
 
-Mongolian-first ESG and greenhouse-gas accounting platform.
+Монголд төвлөрсөн ESG болон хүлэмжийн хийн бүртгэлийн SaaS платформ.
 
-## Architecture
+## Архитектур
 
-- `apps/web`: Next.js + TypeScript frontend
-- `apps/api`: Python FastAPI backend
-- Authentication: Neon Managed Better Auth (email/password) with a same-origin Next.js proxy; FastAPI verifies EdDSA JWTs using Neon JWKS.
-- PostgreSQL multi-tenant persistence foundation is defined with SQLAlchemy models, Alembic migration, tenant-scoped composite foreign keys, and PostgreSQL row-level security. The current calculation endpoint remains stateless until authentication and tenant-aware persistence routes are implemented.
-- Emissions are calculated deterministically from activity data and a supplied, documented emission factor.
-- AI may assist with document extraction and report narratives, but must never invent emission factors or authoritative calculation results.
+- \`apps/web\`: Next.js + TypeScript frontend
+- \`apps/api\`: Python FastAPI backend
+- Нэвтрэлт: Neon Managed Better Auth (email/password), Next.js same-origin proxy; FastAPI нь Neon JWKS ашиглан EdDSA JWT-г шалгана.
+- PostgreSQL multi-tenant өгөгдлийн загвар, Alembic migration, tenant-scoped composite foreign key болон Row-Level Security (RLS).
+- Ялгарлыг activity data × баримтжуулсан emission factor аргаар детерминист тооцно.
+- AI нь баримт бичиг унших, тайлбар/тайлангийн ноорог гаргахад тусалж болох ч emission factor болон албан ёсны тооцооны үр дүнг зохиохгүй.
 
-## Current API capability
+## API
 
-The API currently supports a first-pass Scope 1 and Scope 2 calculation endpoint:
+API-г \`apps/api\` хавтаснаас ажиллуулна.
 
-- `GET /health` — service health
-- `GET /v1/auth/me` — protected identity verification; requires `Authorization: Bearer <Neon JWT>`
-- `GET /v1/organizations` — list organizations for the verified user (requires migrated PostgreSQL schema and `DATABASE_URL`)
-- `POST /v1/organizations` — create an organization and its initial owner membership atomically (requires migrated PostgreSQL schema and `DATABASE_URL`)
-- `POST /v1/calculations` — calculate an inventory from supplied activity records and emission factors
-- `GET /docs` — interactive API documentation
+\`\`\`bash
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload
+\`\`\`
 
-Each record must include its own emission factor, denominator unit, source name, HTTPS source URL, year, and version. The activity unit must match the factor denominator. The API intentionally ships with **no hard-coded emission factors**.
+| Method | Endpoint | Тайлбар |
+|---|---|---|
+| GET | \`/health\` | Үйлчилгээний төлөв |
+| GET | \`/v1/auth/me\` | JWT баталгаажуулалт |
+| GET / POST | \`/v1/organizations\` | Байгууллага жагсаах / үүсгэх |
+| GET | \`/v1/organizations/{organization_id}/emission-factors\` | Тухайн байгууллагын баталгаажсан коэффициентүүд |
+| GET / POST | \`/v1/organizations/{organization_id}/inventories\` | Тайлант бүртгэл жагсаах / үүсгэх |
+| GET / POST | \`/v1/organizations/{organization_id}/inventories/{inventory_id}/activities\` | Үйл ажиллагааны мөр харах / нэмэх |
+| POST | \`/v1/organizations/{organization_id}/inventories/{inventory_id}/calculate\` | Scope 1/2 тооцоог snapshot болгон хадгалах |
+| GET | \`/v1/organizations/{organization_id}/inventories/{inventory_id}/calculations\` | Тооцооллын түүх |
+| POST | \`/v1/calculations\` | Explicit factor ашигласан stateless preview; байгууллагын тайлан биш |
+| GET | \`/docs\` | API баримтжуулалт |
 
-The factor value is interpreted as `kgCO2e per activity unit`. Results are returned in kgCO2e and tCO2e. The current calculation endpoint does not yet persist records or implement the Scope 2 market-based/location-based reporting distinction.
+Байгууллагын өгөгдлийн endpoint бүр Neon JWT шаарддаг. Хэрэглэгч тухайн байгууллагын membership-тэй байх ёстой; өгөгдөл уншихад viewer эрх зөвшөөрөгдөх ба бичих/тооцоолох үйлдэлд owner, admin эсвэл editor эрх шаардлагатай. PostgreSQL RLS context-ийг transaction бүрд эхлээд verified identity, дараа нь membership баталгаажсаны дараа organization ID-аар тохируулна.
 
-### Example request
+## Тооцооллын бүрэн бүтэн байдал
 
-```json
-{
-  "reporting_period_start": "2026-01-01",
-  "reporting_period_end": "2026-12-31",
-  "records": [
-    {
-      "name": "Purchased electricity",
-      "scope": "scope_2",
-      "category": "purchased_electricity",
-      "activity_amount": "1000",
-      "activity_unit": "kWh",
-      "emission_factor_kgco2e_per_unit": "0.5",
-      "factor_unit": "kWh",
-      "factor_source_name": "Example source — replace with a verified factor",
-      "factor_source_url": "https://example.org/emission-factors",
-      "factor_year": 2026,
-      "factor_version": "1.0"
-    }
-  ]
-}
-```
+Persisted inventory API нь activity хүсэлтээс emission-factor утга хүлээн авахгүй. Харин тухайн байгууллагад бүртгэлтэй, \`verified=true\` коэффициентийг серверээс сонгож, Scope, category, CO2e basis болон нэгжийг тулгана. Нэгжийн тэмдэглэгээ яг ижил байх ёстой. Үр дүнг Decimal арифметикаар kgCO2e-д тооцож, ROUND_HALF_UP аргаар 8 орны нарийвчлалд хадгална.
 
-The factor in this example is illustrative only and must not be used for actual reporting.
+Activity record нь коэффициентийн утга/нэгжийн snapshot агуулна. Calculation run нь methodology version болон activity, factor, эх сурвалж, он, хувилбарын provenance snapshot хадгална. Тооцоолохын өмнө activity record-ийн хадгалсан emissions утгыг snapshot factor-аар дахин тооцож тулгана. Calculation run болон audit event хүснэгтэд PostgreSQL append-only trigger үйлчилнэ.
 
-## PostgreSQL persistence foundation (not yet wired to API routes)
+**Коэффициентийн сан хоосон эхэлнэ.** Hard-coded эсвэл зохиомол emission factor байхгүй. Коэффициентийг албан ёсны/найдвартай эх сурвалжаас баримтжуулж, эх сурвалжийн HTTPS URL, баримтын нэр, он, хувилбарыг бүртгэн, эрх бүхий data steward хянасны дараа \`verified=true\` төлөвтэй шинэ version мөр болгон оруулна. Emission-factor мөрүүд immutable тул батлагдсан коэффициентийг засварлахын оронд шинэ version үүсгэнэ. Одоогийн API-д коэффициент үүсгэх/батлах admin endpoint хараахан байхгүй.
 
-The API now contains a tenant-scoped schema for organizations, memberships, versioned emission factors, inventories, activity records, calculation snapshots, and audit events. PostgreSQL row-level security requires transaction-local identity and organization context; membership discovery is scoped to the authenticated subject. Composite foreign keys prevent records from referencing another organization's inventory or emission factor. Emission-factor rows are immutable: corrections must be inserted as a new version.
+Stateless \`POST /v1/calculations\` нь клиентээс explicit factor авдаг анхны preview endpoint хэвээр. Production байгууллагын тайланг persisted inventory workflow-оор гаргана.
 
-Neon Managed Better Auth is provisioned on the Neon default branch. The web app includes email sign-up/sign-in, same-origin auth proxy, protected workspace, and sign-out. FastAPI validates EdDSA JWT signature, issuer, audience, expiry, and subject. The `GET /v1/auth/me` endpoint is the first protected integration check. Organization list/create routes now use transaction-local identity and tenant RLS context. They remain unavailable until the tenant migration is applied and a restricted runtime database role is configured. Do not expose tenant data routes until a verified identity-to-organization membership dependency sets both RLS contexts on every transaction. Use a restricted runtime database role; do not run the app as a superuser or a role with BYPASSRLS.
+## PostgreSQL ба нэвтрэлт
 
-Set `DATABASE_URL` to Neon's pooled connection string for runtime requests. Set `DATABASE_URL_UNPOOLED` to the direct (non-pooler) string for migrations. Never commit either secret.
+Runtime-д Neon's pooled connection string-ийг \`DATABASE_URL\`, migration-д direct (non-pooler) connection string-ийг \`DATABASE_URL_UNPOOLED\` болгон тохируулна. Нууц утгыг repository-д commit хийхгүй. API runtime-д \`neondb_owner\` зэрэг superuser/BYPASSRLS эрхтэй role ашиглахгүй; зөвхөн шаардлагатай schema/table-д хязгаарласан role ашиглана.
 
-Run the first schema migration only after reviewing it against a Neon development branch:
+\`NEON_AUTH_BASE_URL\`, \`NEON_AUTH_COOKIE_SECRET\` нь web service-д; \`NEON_AUTH_BASE_URL\`, \`NEON_AUTH_JWKS_URL\` нь FastAPI-д шаардлагатай. Cookie secret дор хаяж 32 тэмдэгт байх ёстой бөгөөд зөвхөн server-side environment variable байна.
 
-```bash
+Migration-ийг эхлээд disposable Neon development branch дээр туршина:
+
+\`\`\`bash
 cd apps/api
 alembic upgrade head
-```
+\`\`\`
 
-The migration has not been applied to the shared Neon project. It is version-controlled and must be tested on a disposable Neon branch before any shared/main-branch application.
-
-## Authentication configuration
-
-Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` for the web service. The cookie secret must be at least 32 characters and server-only. Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_JWKS_URL` for FastAPI. Localhost origins are pre-approved by Neon Auth; add the exact production HTTPS frontend origin to Neon Auth trusted domains after the Render URL exists.
+Tenant schema-г shared Neon main branch дээр шууд ажиллуулахгүй. Deployment тохиргоо болон free-first хувилбарын зааврыг [DEPLOYMENT.md](DEPLOYMENT.md)-оос үзнэ үү.
 
 ## Local development
 
 ### API
 
-```bash
+\`\`\`bash
 cd apps/api
 python -m venv .venv
-# Activate the virtual environment, then:
+# virtual environment-ээ идэвхжүүлээд:
 pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
-```
-
-Run API unit tests:
-
-```bash
-cd apps/api
-pytest
-```
+pytest -q
+\`\`\`
 
 ### Web
 
-```bash
+\`\`\`bash
 cd apps/web
 npm install
 npm run dev
-```
+\`\`\`
 
-## Accounting approach and limitations
+## Нягтлан бодох бүртгэлийн аргачлал ба хязгаарлалт
 
-The implementation follows the basic activity-data × documented-emission-factor calculation pattern described by the GHG Protocol. A production inventory still requires appropriate, region- and year-specific factors, transparent organizational and operational boundaries, data-quality controls, and review of applicable accounting methods. Scope 2 market-based/location-based accounting, database persistence, authentication, audit-log persistence, reporting exports, and Scope 3 are not yet implemented.
+Суурь аргачлал нь GHG Protocol-ийн activity data × documented emission factor зарчимд тулгуурлана. Production тайланд Монголын тухайн он/салбарт тохирох хүчин зүйл, байгууллагын болон үйл ажиллагааны хил хязгаар, өгөгдлийн чанарын шалгалт, хүний хяналт шаардлагатай.
 
-References:
+Одоогоор Scope 2 market-based/location-based ялгалт, factor approval/admin UI/API, factor library-ийн албан ёсны Монгол өгөгдөл, activity correction workflow, PDF/Excel экспорт болон Scope 3 бүрэн хэрэгжээгүй.
+
+Эх сурвалж:
 - [GHG Protocol — How do I calculate emissions?](https://ghgptechassistance.zendesk.com/hc/en-us/articles/37790958151700-How-do-I-calculate-emissions)
 - [GHG Protocol — Standards and Guidance](https://ghgprotocol.org/standards-guidance)
 
-## MVP roadmap
+## MVP дараалал
 
-1. Organization workspace and authentication
-2. Activity data entry and persistence
-3. Verified Mongolia-relevant emission-factor library with provenance and versioning
-4. Scope 1 and Scope 2 calculation and reporting methods
-5. Audit trail and PDF/Excel exports
-6. Scope 3 and expanded ESG disclosures
+1. Нэвтрэлт ба байгууллагын workspace
+2. Тайлант inventory, activity data persistence, tenant isolation
+3. Монголд хамаарах баталгаажсан emission-factor library
+4. Scope 1/2 calculation, аргачлалын сонголт, аудитын snapshot
+5. Хүний review workflow, PDF/Excel экспорт
+6. Scope 3 болон өргөтгөсөн ESG disclosure
