@@ -144,3 +144,15 @@ def test_factor_review_requires_known_submitter_identity():
 
 def test_independent_factor_reviewer_is_allowed():
     _require_independent_reviewer("user-submitter", "user-reviewer")
+
+def test_scope2_factor_requires_an_explicit_method():
+    payload = valid_factor_payload()
+    payload.pop("scope_2_method")
+    with pytest.raises(ValidationError):
+        EmissionFactorCreate(**payload)
+
+    payload = valid_factor_payload()
+    payload["scope"] = "scope_1"
+    payload["category"] = "stationary_combustion"
+    payload["scope_2_method"] = None
+    EmissionFactorCreate(**payload)
