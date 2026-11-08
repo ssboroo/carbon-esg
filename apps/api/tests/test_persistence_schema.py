@@ -88,3 +88,20 @@ def test_membership_rls_only_exposes_the_verified_subject():
     organization_policy = migration.split("CREATE POLICY organizations_member_select", 1)[1].split('""")', 1)[0]
     assert "EXISTS (" in organization_policy
     assert "OR id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid" not in organization_policy
+
+def test_alembic_revision_ids_fit_default_version_column():
+    import ast
+    from pathlib import Path
+
+    migrations = Path(__file__).parents[1] / "migrations" / "versions"
+    for migration_path in migrations.glob("*.py"):
+        module = ast.parse(migration_path.read_text(encoding="utf-8"))
+        revision = next(
+            node.value.value
+            for node in module.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "revision" for target in node.targets)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        )
+        assert len(revision) <= 32, f"{migration_path.name} revision ID is too long"
