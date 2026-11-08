@@ -137,9 +137,11 @@ def upgrade() -> None:
     op.create_index("ix_audit_org_created", "audit_events", ["organization_id", "created_at"])
     op.create_index("ix_audit_org_entity", "audit_events", ["organization_id", "entity_type", "entity_id"])
 
+    # Every tenant-owned table is protected even if a query accidentally omits its tenant filter.
     # Organization discovery happens before a tenant is selected. Allow SELECT
     # only when the verified identity has a membership; keep writes bound to the
-    # explicitly selected organization. Membership RLS limits the EXISTS lookup.
+    # explicitly selected organization. The membership table's own RLS policy
+    # limits the EXISTS lookup to the current verified subject.
     op.execute("ALTER TABLE organizations ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE organizations FORCE ROW LEVEL SECURITY")
     op.execute("""
