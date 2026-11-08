@@ -88,3 +88,31 @@ def test_membership_rls_only_exposes_the_verified_subject():
     organization_policy = migration.split("CREATE POLICY organizations_member_select", 1)[1].split('""")', 1)[0]
     assert "EXISTS (" in organization_policy
     assert "OR id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid" not in organization_policy
+
+def test_latest_migration_matches_scope2_review_and_evidence_models():
+    from pathlib import Path
+
+    migration = (
+        Path(__file__).parents[1]
+        / "migrations"
+        / "versions"
+        / "0002_scope2_reviews_evidence.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'down_revision = "0001_tenant_esg_schema"' in migration
+    for table in ("emission_factor_reviews", "evidence"):
+        assert f'op.create_table(\n        "{table}"' in migration
+        assert f"_enable_tenant_rls(\"{table}\")" in migration
+    for column in (
+        "scope_2_method",
+        "submitted_by_subject",
+        "scope_2_primary_method",
+        "scope_2_location_based_kgco2e",
+        "scope_2_market_based_kgco2e",
+        "total_location_based_kgco2e",
+        "total_market_based_kgco2e",
+    ):
+        assert column in migration
+    for table in ("calculation_runs", "emission_factor_reviews", "evidence", "audit_events"):
+        assert f'("{table}",' in migration
+    assert "prevent_append_only_mutation" in migration
