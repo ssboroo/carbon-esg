@@ -118,3 +118,90 @@ button:disabled { opacity: .6; cursor: wait; }
   .history-item { grid-template-columns: 1fr auto; }
   .history-item small { grid-column: 1 / -1; }
 }
+
+
+/* Source-cited emission factor registry and independent review */
+textarea { font: inherit; }
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 11px;
+  color: var(--ink);
+  background: #fff;
+  resize: vertical;
+  line-height: 1.5;
+}
+.field textarea:focus { outline: 2px solid #b6d8c6; border-color: var(--green); }
+.factor-registry-panel { display: grid; gap: 16px; }
+.factor-submit-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+.factor-submit-form .factor-source-url { grid-column: span 2; }
+.factor-submit-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.factor-submit-actions p {
+  flex: 1;
+  min-width: 220px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.factor-submit-actions strong { color: var(--ink); }
+.factor-accounting-note {
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: #f8faf8;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.factor-review-section { margin-top: 4px; padding-top: 22px; border-top: 1px solid var(--line); }
+.factor-review-heading { align-items: end; }
+.factor-review-heading h3 { margin: 0 0 6px; font-size: 16px; }
+.factor-review-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.factor-filter { min-width: 170px; }
+.factor-review-list { display: grid; gap: 12px; }
+.factor-review-card { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.factor-review-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.factor-review-card-heading > div { display: grid; gap: 5px; min-width: 0; }
+.factor-review-card-heading strong { overflow-wrap: anywhere; }
+.factor-review-card-heading small { color: var(--muted); font-size: 11px; }
+.factor-status { display: inline-flex; flex: 0 0 auto; align-items: center; border-radius: 999px; padding: 5px 9px; background: #f3f5f3; color: var(--muted); font-size: 11px; font-weight: 700; }
+.factor-status.approved { background: #e7f2eb; color: var(--green); }
+.factor-status.rejected { background: #fff1ef; color: #922d2d; }
+.factor-review-details { display: flex; flex-wrap: wrap; gap: 7px 15px; margin-top: 13px; color: var(--muted); font-size: 12px; }
+.factor-review-details strong { color: var(--ink); }
+.factor-review-source { display: flex; flex-wrap: wrap; gap: 7px 14px; margin-top: 10px; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.factor-review-source a { color: var(--green); text-decoration: underline; text-underline-offset: 2px; }
+.factor-review-source span { color: var(--muted); }
+.factor-review-actions { display: grid; gap: 10px; margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); }
+.factor-review-buttons { display: flex; gap: 9px; flex-wrap: wrap; }
+.factor-review-history { display: grid; gap: 5px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.factor-review-history p { margin: 3px 0 0; color: var(--ink); line-height: 1.55; white-space: pre-wrap; }
+@media (max-width: 760px) {
+  .factor-submit-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .factor-submit-form .factor-source-url { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .factor-submit-form { grid-template-columns: 1fr; }
+  .factor-submit-form .factor-source-url, .factor-submit-actions { grid-column: auto; }
+  .factor-submit-actions { align-items: stretch; }
+  .factor-submit-actions .button-primary { width: 100%; }
+  .factor-review-heading { display: grid; }
+  .factor-filter { width: 100%; }
+  .factor-review-card-heading { display: grid; }
+}
