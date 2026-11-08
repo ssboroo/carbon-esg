@@ -278,6 +278,7 @@ def create_inventory(
                         "name": request.name,
                         "reporting_period_start": request.reporting_period_start.isoformat(),
                         "reporting_period_end": request.reporting_period_end.isoformat(),
+                        "scope_2_primary_method": request.scope_2_primary_method,
                     },
                 )
             )
@@ -311,7 +312,7 @@ def list_activity_records(
     try:
         with db.begin():
             _require_membership(db, user["sub"], organization_id)
-            _get_inventory(db, organization_id, inventory_id)
+            inventory = _get_inventory(db, organization_id, inventory_id)
             rows = db.execute(
                 select(ActivityRecord, EmissionFactor)
                 .join(
@@ -573,6 +574,7 @@ def calculate_persisted_inventory(
                 inventory_id=inventory_id,
                 scope_1_kgco2e=scope_1,
                 scope_2_kgco2e=scope_2,
+                scope_2_primary_method=primary_method,
                 scope_2_location_based_kgco2e=scope_2_location if has_location else None,
                 scope_2_market_based_kgco2e=scope_2_market if has_market else None,
                 total_location_based_kgco2e=total_location,
