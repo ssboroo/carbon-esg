@@ -3,6 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { authClient } from "@/lib/auth/client";
 import { FactorReviewPanel } from "./factor-review-panel";
+import { EvidencePanel } from "./evidence-panel";
 
 type Organization = { id: string; name: string; slug: string; role: string };
 type Inventory = {
@@ -123,7 +124,8 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
 
     const headers = new Headers(init.headers);
     headers.set("Authorization", "Bearer " + token);
-    if (init.body && !headers.has("Content-Type")) {
+    const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+    if (init.body && !headers.has("Content-Type") && !isFormData) {
       headers.set("Content-Type", "application/json");
     }
 
@@ -672,6 +674,15 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                   </div>
                 )}
               </section>
+
+              {selectedOrganization && (
+                <EvidencePanel
+                  organizationId={selectedOrganization.id}
+                  activities={activities.map((item) => ({ id: item.id, name: item.name }))}
+                  canWrite={canWrite}
+                  apiRequest={apiRequest}
+                />
+              )}
 
               <section className="workspace-panel">
                 <div className="section-heading">
