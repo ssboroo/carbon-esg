@@ -41,16 +41,16 @@ def detect_evidence_type(filename: str, content: bytes) -> str:
     extension = PurePosixPath(filename).suffix.lower()
     if extension == ".pdf" and content.startswith(b"%PDF-"):
         return "application/pdf"
-    if extension in {".jpg", ".jpeg"} and content.startswith(b"\\xff\\xd8\\xff"):
+    if extension in {".jpg", ".jpeg"} and content.startswith(b"\xff\xd8\xff"):
         return "image/jpeg"
-    if extension == ".png" and content.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    if extension == ".png" and content.startswith(b"\x89PNG\r\n\x1a\n"):
         return "image/png"
     if extension == ".csv":
         try:
             decoded = content.decode("utf-8-sig")
         except UnicodeDecodeError:
             raise HTTPException(status_code=415, detail="CSV must be valid UTF-8 text") from None
-        if not decoded.strip() or "\\x00" in decoded:
+        if not decoded.strip() or "\x00" in decoded:
             raise HTTPException(status_code=415, detail="CSV content is empty or invalid")
         return "text/csv"
     if extension == ".xlsx":
