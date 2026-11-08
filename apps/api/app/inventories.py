@@ -53,6 +53,33 @@ def calculate_activity_emissions(activity_amount: Decimal, factor_value: Decimal
     )
 
 
+def calculate_scope2_method_totals(scope_1: Decimal, scope_2_records: list[ActivityRecord], primary_method: str):
+    """Calculate the two alternative Scope 2 methods separately; never add them together."""
+    if primary_method not in {"location_based", "market_based"}:
+        raise ValueError("Unknown primary Scope 2 method")
+    totals = {"location_based": Decimal("0"), "market_based": Decimal("0")}
+    present: set[str] = set()
+    for record in scope_2_records:
+        method = record.scope_2_method
+        if method not in totals:
+            raise ValueError("Every new Scope 2 activity must declare a valid method")
+        present.add(method)
+        totals[method] += record.emissions_kgco2e
+    if scope_2_records and primary_method not in present:
+        raise ValueError("The inventory primary Scope 2 method has no activity records")
+
+    location = totals["location_based"].quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP) if "location_based" in present else None
+    market = totals["market_based"].quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP) if "market_based" in present else None
+    primary = totals[primary_method].quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
+    return (
+        primary,
+        location,
+        market,
+        (scope_1 + location) if location is not None else None,
+        (scope_1 + market) if market is not None else None,
+    )
+
+
 def activity_snapshot_is_valid(
     record: ActivityRecord,
     factor: EmissionFactor,
@@ -521,26 +548,23 @@ def calculate_persisted_inventory(
                 Decimal("0"),
             ).quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
             scope_2_rows = [record for record, _factor, _review_decision in rows if record.scope == "scope_2"]
-            scope_2_location = sum(
-                (record.emissions_kgco2e for record in scope_2_rows if record.scope_2_method == "location_based"),
-                Decimal("0"),
-            ).quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
-            scope_2_market = sum(
-                (record.emissions_kgco2e for record in scope_2_rows if record.scope_2_method == "market_based"),
-                Decimal("0"),
-            ).quantize(EIGHT_PLACES, rounding=ROUND_HALF_UP)
-            has_location = any(record.scope_2_method == "location_based" for record in scope_2_rows)
-            has_market = any(record.scope_2_method == "market_based" for record in scope_2_rows)
             primary_method = inventory.scope_2_primary_method
-            if scope_2_rows and not any(record.scope_2_method == primary_method for record in scope_2_rows):
+            try:
+                (
+                    scope_2,
+                    scope_2_location,
+                    scope_2_market,
+                    total_location,
+                    total_market,
+                ) = calculate_scope2_method_totals(scope_1, scope_2_rows, primary_method)
+            except ValueError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Тайлангийн үндсэн Scope 2 аргачлалд тохирох activity мөр алга",
-                )
-            scope_2 = scope_2_location if primary_method == "location_based" else scope_2_market
+                    detail="Scope 2 аргачлалын өгөгдөл дутуу эсвэл зөрүүтэй байна",
+                ) from exc
+            has_location = scope_2_location is not None
+            has_market = scope_2_market is not None
             total = scope_1 + scope_2
-            total_location = (scope_1 + scope_2_location) if has_location else None
-            total_market = (scope_1 + scope_2_market) if has_market else None
 
             snapshot_records = []
             for record, factor, review_decision in rows:
