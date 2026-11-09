@@ -32,7 +32,7 @@ def test_emission_factors_are_versioned_and_provenanced():
         if constraint.__class__.__name__ == "UniqueConstraint"
     }
     assert ("organization_id", "factor_code", "version") in unique_column_sets
-    assert {"source_name", "source_url", "factor_year", "version"} <= set(table.columns.keys())
+    assert {"source_name", "source_url", "factor_year", "version", "geography_code", "geography_name", "geography_boundary", "valid_from", "valid_to"} <= set(table.columns.keys())
 
 
 def test_calculation_runs_keep_reproducible_input_snapshot():
@@ -61,6 +61,7 @@ def test_scope2_method_fields_are_persisted_separately():
     runs = Base.metadata.tables["calculation_runs"]
     assert "scope_2_method" in factors.columns
     assert "scope_2_method" in activities.columns
+    assert {"activity_geography_code", "activity_geography_name"} <= set(activities.columns.keys())
     assert "scope_2_primary_method" in inventories.columns
     assert {
         "scope_2_location_based_kgco2e",
@@ -118,3 +119,27 @@ def test_legacy_scope2_rows_are_marked_and_new_unclassified_rows_are_blocked():
     assert "SET scope_2_method = 'legacy_unclassified'" in migration
     assert "AS RESTRICTIVE FOR INSERT WITH CHECK" in migration
     assert "scope_2_method IN ('location_based', 'market_based')" in migration
+
+
+def test_factor_geography_migration_does_not_guess_legacy_validity_dates():
+    from pathlib import Path
+
+    migration = (
+        Path(__file__).parents[1]
+        / "migrations"
+        / "versions"
+        / "0006_factor_geography_applicability.py"
+    ).read_text(encoding="utf-8")
+    assert "LEGACY_UNSPECIFIED" in migration
+    assert "valid_from IS NULL AND valid_to IS NULL" in migration
+    assert "UPDATE emission_factors" not in migration
+
+
+def test_factor_validity_constraint_allows_only_both_unknown_or_ordered_dates():
+    factors = Base.metadata.tables["emission_factors"]
+    constraint = next(
+        item for item in factors.constraints if item.name == "ck_factor_validity_period"
+    )
+    sql = str(constraint.sqltext)
+    assert "valid_from IS NULL AND valid_to IS NULL" in sql
+    assert "valid_from <= valid_to" in sql

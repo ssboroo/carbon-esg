@@ -23,6 +23,11 @@ type FactorReviewItem = {
   source_document: string | null;
   factor_year: number;
   version: string;
+  geography_code: string;
+  geography_name: string;
+  geography_boundary: "global" | "national" | "subnational" | "grid" | "market" | "facility" | "other";
+  valid_from: string | null;
+  valid_to: string | null;
   approval_status: "pending" | "approved" | "rejected";
   submitted_by_subject: string | null;
   reviewer_subject: string | null;
@@ -45,6 +50,11 @@ type FactorDraft = {
   source_document: string;
   factor_year: string;
   version: string;
+  geography_code: string;
+  geography_name: string;
+  geography_boundary: "" | "global" | "national" | "subnational" | "grid" | "market" | "facility" | "other";
+  valid_from: string;
+  valid_to: string;
 };
 
 const CATEGORY_OPTIONS: Record<Scope, { value: string; label: string }[]> = {
@@ -83,7 +93,12 @@ function createInitialDraft(): FactorDraft {
     source_url: "",
     source_document: "",
     factor_year: String(new Date().getFullYear()),
-    version: "1.0"
+    version: "1.0",
+    geography_code: "",
+    geography_name: "",
+    geography_boundary: "",
+    valid_from: new Date().getFullYear() + "-01-01",
+    valid_to: new Date().getFullYear() + "-12-31"
   };
 }
 
@@ -205,6 +220,14 @@ export function FactorReviewPanel({
       setError("Коэффициентийн он 1900–2200 оны хооронд бүхэл тоо байна.");
       return;
     }
+    if (!draft.geography_code.trim() || !draft.geography_name.trim() || !draft.geography_boundary) {
+      setError("Коэффициентийн газарзүйн код, нэр болон хил заагийн төрлийг бөглөнө үү.");
+      return;
+    }
+    if (!draft.valid_from || !draft.valid_to || draft.valid_to < draft.valid_from) {
+      setError("Коэффициентийн хүчинтэй хугацааны эхлэх/дуусах огноог зөв оруулна уу.");
+      return;
+    }
 
     let sourceUrl: URL;
     try {
@@ -228,6 +251,10 @@ export function FactorReviewPanel({
           ...draft,
           factor_value: factorValue,
           factor_year: factorYear,
+          geography_code: draft.geography_code.trim().toUpperCase(),
+          geography_name: draft.geography_name.trim(),
+          valid_from: draft.valid_from,
+          valid_to: draft.valid_to,
           source_url: sourceUrl.toString(),
           source_document: draft.source_document.trim() || null
         })
@@ -283,7 +310,7 @@ export function FactorReviewPanel({
       <div className="section-heading">
         <div>
           <h2>Ялгарлын коэффициентийн сан</h2>
-          <p>Эх сурвалж, он, нэгж, хувилбартай коэффициентийг бүртгэж, хараат бус хяналтаар баталгаажуулна.</p>
+          <p>Эх сурвалж, нэгж, хувилбар, газарзүйн хил зааг болон хүчинтэй хугацааг бүртгэж, хараат бус хяналтаар баталгаажуулна.</p>
         </div>
         {canReview && <span className="count-chip">{items.length} бүртгэл</span>}
       </div>
@@ -343,6 +370,62 @@ export function FactorReviewPanel({
               </select>
             </label>
           )}
+          <label className="field">
+            <span>Газарзүйн код</span>
+            <input
+              value={draft.geography_code}
+              onChange={(event) => updateDraft("geography_code", event.target.value)}
+              maxLength={32}
+              placeholder="MNG-GRID-01 эсвэл GLOBAL"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Газарзүйн нэр</span>
+            <input
+              value={draft.geography_name}
+              onChange={(event) => updateDraft("geography_name", event.target.value)}
+              maxLength={160}
+              placeholder="Монголын төвийн эрчим хүчний систем"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Газарзүйн хил заагийн төрөл</span>
+            <select
+              value={draft.geography_boundary}
+              onChange={(event) => updateDraft("geography_boundary", event.target.value as FactorDraft["geography_boundary"])}
+              required
+            >
+              <option value="">Сонгох…</option>
+              <option value="global">Дэлхийн (GLOBAL)</option>
+              <option value="national">Улсын</option>
+              <option value="subnational">Дэд улсын / бүсийн</option>
+              <option value="grid">Цахилгаан сүлжээ</option>
+              <option value="market">Эрчим хүчний зах зээл</option>
+              <option value="facility">Байгууламж</option>
+              <option value="other">Бусад</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Хүчинтэй эхлэх огноо</span>
+            <input
+              type="date"
+              value={draft.valid_from}
+              onChange={(event) => updateDraft("valid_from", event.target.value)}
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Хүчинтэй дуусах огноо</span>
+            <input
+              type="date"
+              min={draft.valid_from || undefined}
+              value={draft.valid_to}
+              onChange={(event) => updateDraft("valid_to", event.target.value)}
+              required
+            />
+          </label>
           <label className="field">
             <span>Коэффициентийн утга (kgCO₂e / нэгж)</span>
             <input
@@ -469,6 +552,8 @@ export function FactorReviewPanel({
                     <span>{CATEGORY_OPTIONS[item.scope].find((category) => category.value === item.category)?.label || item.category}</span>
                     <strong>{formatFactorValue(item.factor_value)} kgCO₂e / {item.factor_unit}</strong>
                     <span>Хийн суурь: {item.gas_basis}</span>
+                    <span>Газарзүй: {item.geography_name} ({item.geography_code}) · {item.geography_boundary}</span>
+                    <span>Хүчинтэй: {item.valid_from && item.valid_to ? item.valid_from + " — " + item.valid_to : "Хуучин бүртгэлд тодорхойгүй"}</span>
                   </div>
                   <div className="factor-review-source">
                     <a href={item.source_url} target="_blank" rel="noreferrer">{item.source_name} · Эх сурвалж нээх</a>

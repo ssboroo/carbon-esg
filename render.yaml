@@ -20,9 +20,9 @@ services:
           name: carbon-esg-web
           envVarKey: RENDER_EXTERNAL_URL
       - key: NEON_AUTH_BASE_URL
-        value: https://ep-snowy-wind-a1bftha7.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth
+        value: https://ep-shy-grass-a1rst493.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth
       - key: NEON_AUTH_JWKS_URL
-        value: https://ep-snowy-wind-a1bftha7.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
+        value: https://ep-shy-grass-a1rst493.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth/.well-known/jwks.json
       # Set this manually to the pooled URL for the isolated development branch.
       # Use the restricted carbon_esg_app role; never use neondb_owner.
       - key: DATABASE_URL
@@ -45,6 +45,6 @@ services:
           name: carbon-esg-api
           envVarKey: RENDER_EXTERNAL_URL
       - key: NEON_AUTH_BASE_URL
-        value: https://ep-snowy-wind-a1bftha7.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth
+        value: https://ep-shy-grass-a1rst493.neonauth.ap-southeast-1.aws.neon.tech/neondb/auth
       - key: NEON_AUTH_COOKIE_SECRET
         generateValue: true

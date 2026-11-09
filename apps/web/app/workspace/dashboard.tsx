@@ -29,6 +29,11 @@ type EmissionFactor = {
   source_document: string | null;
   factor_year: number;
   version: string;
+  geography_code: string;
+  geography_name: string;
+  geography_boundary: "global" | "national" | "subnational" | "grid" | "market" | "facility" | "other";
+  valid_from: string | null;
+  valid_to: string | null;
 };
 type ActivityRecord = {
   id: string;
@@ -46,6 +51,13 @@ type ActivityRecord = {
   factor_source_name: string;
   factor_source_url: string;
   factor_year: number;
+  activity_geography_code: string;
+  activity_geography_name: string;
+  factor_geography_code: string;
+  factor_geography_name: string;
+  factor_geography_boundary: "global" | "national" | "subnational" | "grid" | "market" | "facility" | "other";
+  factor_valid_from: string | null;
+  factor_valid_to: string | null;
   emissions_kgco2e: string;
 };
 type Calculation = {
@@ -119,6 +131,8 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
   const [scope2PrimaryMethod, setScope2PrimaryMethod] = useState<"location_based" | "market_based">("location_based");
   const [activityName, setActivityName] = useState("");
   const [activityAmount, setActivityAmount] = useState("");
+  const [activityGeographyCode, setActivityGeographyCode] = useState("");
+  const [activityGeographyName, setActivityGeographyName] = useState("");
   const [factorId, setFactorId] = useState("");
 
   const apiRequest = useCallback(async <T,>(path: string, init: RequestInit = {}): Promise<T> => {
@@ -168,6 +182,14 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
   const selectedFactor = useMemo(
     () => factors.find((item) => item.id === factorId) || null,
     [factors, factorId]
+  );
+  const factorCoversInventory = Boolean(
+    selectedFactor &&
+    selectedInventory &&
+    selectedFactor.valid_from !== null &&
+    selectedFactor.valid_to !== null &&
+    selectedFactor.valid_from <= selectedInventory.reporting_period_start &&
+    selectedFactor.valid_to >= selectedInventory.reporting_period_end
   );
   const canWrite = Boolean(
     selectedOrganization && ["owner", "admin", "editor"].includes(selectedOrganization.role)
@@ -348,7 +370,19 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
 
   async function createActivity(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!organizationId || !inventoryId || !selectedFactor) return;
+    if (!organizationId || !inventoryId || !selectedFactor || !selectedInventory) return;
+    if (!factorCoversInventory) {
+      setError("Сонгосон коэффициентийн хүчинтэй хугацаа тайлант хугацааг бүхэлд нь хамрахгүй байна.");
+      return;
+    }
+    if (!activityGeographyCode.trim() || !activityGeographyName.trim()) {
+      setError("Үйл ажиллагааны газарзүйн код болон нэрийг бөглөнө үү.");
+      return;
+    }
+    if (selectedFactor.geography_code !== "GLOBAL" && activityGeographyCode.trim().toUpperCase() !== selectedFactor.geography_code) {
+      setError("Үйл ажиллагааны газарзүйн код коэффициентийн газарзүйн кодтой таарах ёстой.");
+      return;
+    }
     setBusy("activity");
     setError("");
     setNotice("");
@@ -363,6 +397,8 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
             category: selectedFactor.category,
             activity_amount: activityAmount,
             activity_unit: selectedFactor.factor_unit,
+            geography_code: activityGeographyCode.trim().toUpperCase(),
+            geography_name: activityGeographyName.trim(),
             emission_factor_id: selectedFactor.id
           })
         }
@@ -370,7 +406,9 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
       setActivities((current) => [...current, activity]);
       setActivityName("");
       setActivityAmount("");
-      setNotice("Үйл ажиллагааны мөр эх сурвалж, коэффициентийн хувилбарын хамт хадгалагдлаа.");
+      setActivityGeographyCode("");
+      setActivityGeographyName("");
+      setNotice("Үйл ажиллагааны мөр газарзүй, хүчинтэй хугацаа болон коэффициентийн хувилбарын хамт хадгалагдлаа.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Үйл ажиллагааны мэдээлэл хадгалагдсангүй.");
     } finally {
@@ -425,12 +463,15 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
       ["Сүүлийн аргачлал", latestCalculation?.methodology_version || "Тооцоолоогүй"],
       ["Сүүлийн тооцооллын огноо", latestCalculation?.created_at || ""],
       [],
-      ["Үйл ажиллагаа", "Scope", "Scope 2 method", "Ангилал", "Хэмжээ", "Нэгж", "Factor code", "Factor version", "Factor value", "Factor denominator unit", "Source", "Source URL", "Factor year", "Ялгаруулалт (kgCO2e)"],
+      ["Үйл ажиллагаа", "Scope", "Scope 2 method", "Ангилал", "Activity geography code", "Activity geography name", "Хэмжээ", "Нэгж", "Factor code", "Factor version", "Factor value", "Factor denominator unit", "Factor geography code", "Factor geography name", "Factor boundary", "Factor valid from", "Factor valid to", "Source", "Source URL", "Factor year", "Ялгаруулалт (kgCO2e)"],
       ...activities.map((item) => [
-        item.name, item.scope, item.scope_2_method || "", item.category, item.activity_amount, item.activity_unit,
+        item.name, item.scope, item.scope_2_method || "", item.category,
+        item.activity_geography_code, item.activity_geography_name,
+        item.activity_amount, item.activity_unit,
         item.factor_code, item.factor_version, item.factor_value_snapshot,
-        item.factor_unit_snapshot, item.factor_source_name, item.factor_source_url,
-        item.factor_year, item.emissions_kgco2e
+        item.factor_unit_snapshot, item.factor_geography_code, item.factor_geography_name,
+        item.factor_geography_boundary, item.factor_valid_from ?? "", item.factor_valid_to ?? "",
+        item.factor_source_name, item.factor_source_url, item.factor_year, item.emissions_kgco2e
       ])
     ];
     const csv = rows.map((row) => row.map((value) => {
@@ -633,13 +674,48 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                     </label>
                     <label className="field">
                       <span>Баталгаажсан коэффициент</span>
-                      <select value={factorId} onChange={(event) => setFactorId(event.target.value)} required>
+                      <select
+                        value={factorId}
+                        onChange={(event) => {
+                          const nextId = event.target.value;
+                          const nextFactor = factors.find((factor) => factor.id === nextId);
+                          setFactorId(nextId);
+                          if (nextFactor && nextFactor.geography_code !== "GLOBAL") {
+                            setActivityGeographyCode(nextFactor.geography_code);
+                            setActivityGeographyName(nextFactor.geography_name);
+                          } else {
+                            setActivityGeographyCode("");
+                            setActivityGeographyName("");
+                          }
+                        }}
+                        required
+                      >
                         {factors.map((factor) => (
                           <option key={factor.id} value={factor.id}>
                             {scopeLabel(factor.scope)}{factor.scope_2_method ? " · " + (factor.scope_2_method === "location_based" ? "Location-based" : "Market-based") : ""} · {CATEGORY_LABELS[factor.category] || factor.category} · {factor.name}
                           </option>
                         ))}
                       </select>
+                    </label>
+                    <label className="field">
+                      <span>Үйл ажиллагааны газарзүйн код</span>
+                      <input
+                        value={activityGeographyCode}
+                        onChange={(event) => setActivityGeographyCode(event.target.value.toUpperCase())}
+                        maxLength={32}
+                        placeholder="MNG-GRID-01"
+                        required
+                      />
+                    </label>
+                    <label className="field">
+                      <span>Үйл ажиллагааны газарзүйн нэр</span>
+                      <input
+                        value={activityGeographyName}
+                        onChange={(event) => setActivityGeographyName(event.target.value)}
+                        maxLength={160}
+                        placeholder="Монголын төвийн эрчим хүчний систем"
+                        required
+                      />
                     </label>
                     <label className="field">
                       <span>Хэрэглээний хэмжээ {selectedFactor ? "(" + selectedFactor.factor_unit + ")" : ""}</span>
@@ -658,9 +734,14 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                         <strong>{selectedFactor.factor_code} · {selectedFactor.version}</strong>
                         <span>{formatNumber(selectedFactor.factor_value, 8)} kgCO₂e / {selectedFactor.factor_unit}</span>
                         <a href={selectedFactor.source_url} target="_blank" rel="noreferrer">{selectedFactor.source_name} · {selectedFactor.factor_year} оны эх сурвалж</a>
+                        <span>Газарзүй: {selectedFactor.geography_name} ({selectedFactor.geography_code}) · {selectedFactor.geography_boundary}</span>
+                        <span>Хүчинтэй: {selectedFactor.valid_from && selectedFactor.valid_to ? formatDate(selectedFactor.valid_from) + " — " + formatDate(selectedFactor.valid_to) : "Тодорхойгүй"}</span>
                       </div>
                     )}
-                    <button className="button-primary" type="submit" disabled={busy !== "" || !selectedFactor}>
+                    {selectedFactor && !factorCoversInventory && (
+                      <p className="workspace-message error" role="alert">Энэ коэффициентийн хүчинтэй хугацаа сонгосон тайлант хугацааг бүрэн хамрахгүй.</p>
+                    )}
+                    <button className="button-primary" type="submit" disabled={busy !== "" || !selectedFactor || !factorCoversInventory}>
                       {busy === "activity" ? "Хадгалж байна…" : "Өгөгдөл нэмэх"}
                     </button>
                   </form>
@@ -675,6 +756,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                         <tr>
                           <th>Үйл ажиллагаа</th>
                           <th>Хамрах хүрээ</th>
+                          <th>Газарзүй</th>
                           <th>Хэмжээ</th>
                           <th>Коэффициент</th>
                           <th>Ялгаруулалт</th>
@@ -686,6 +768,7 @@ export function WorkspaceDashboard({ userLabel }: { userLabel: string }) {
                           <tr key={item.id}>
                             <td><strong>{item.name}</strong><small>{CATEGORY_LABELS[item.category] || item.category}</small></td>
                             <td>{scopeLabel(item.scope)}{item.scope_2_method && <small>{item.scope_2_method === "location_based" ? "Location-based" : "Market-based"}</small>}</td>
+                            <td>{item.activity_geography_name}<small>{item.activity_geography_code}</small></td>
                             <td>{formatNumber(item.activity_amount, 4)} {item.activity_unit}</td>
                             <td>{item.factor_code}<small>{item.factor_version} · {formatNumber(item.factor_value_snapshot, 8)} / {item.factor_unit_snapshot}</small></td>
                             <td><strong>{formatNumber(item.emissions_kgco2e, 4)} kg</strong></td>

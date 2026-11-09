@@ -1,4 +1,5 @@
-from datetime import datetime
+import re
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
@@ -24,6 +25,11 @@ class EmissionFactorCreate(BaseModel):
     source_document: str | None = Field(default=None, max_length=255)
     factor_year: int = Field(ge=1900, le=2200)
     version: str = Field(min_length=1, max_length=80)
+    geography_code: str = Field(min_length=1, max_length=32)
+    geography_name: str = Field(min_length=2, max_length=160)
+    geography_boundary: Literal["global", "national", "subnational", "grid", "market", "facility", "other"]
+    valid_from: date
+    valid_to: date
 
     @field_validator("factor_code", "name", "factor_unit", "source_name", "version")
     @classmethod
@@ -31,6 +37,22 @@ class EmissionFactorCreate(BaseModel):
         value = value.strip()
         if not value:
             raise ValueError("Value must not be blank")
+        return value
+
+    @field_validator("geography_code")
+    @classmethod
+    def normalize_geography_code(cls, value: str) -> str:
+        value = value.strip().upper()
+        if not re.fullmatch(r"[A-Z0-9][A-Z0-9._:-]{0,31}", value):
+            raise ValueError("Geography code must use 1-32 uppercase letters, digits, dot, underscore, colon or hyphen")
+        return value
+
+    @field_validator("geography_name")
+    @classmethod
+    def trim_geography_name(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) < 2:
+            raise ValueError("Geography name must contain at least 2 characters")
         return value
 
     @field_validator("source_document")
@@ -57,6 +79,12 @@ class EmissionFactorCreate(BaseModel):
             raise ValueError("Scope 1 factors must not specify a Scope 2 method")
         if self.scope == "scope_2" and self.scope_2_method is None:
             raise ValueError("Scope 2 factors require a location-based or market-based method")
+        if self.valid_to < self.valid_from:
+            raise ValueError("valid_to must be on or after valid_from")
+        if self.geography_code == "GLOBAL" and self.geography_boundary != "global":
+            raise ValueError("GLOBAL geography code requires the global boundary")
+        if self.geography_boundary == "global" and self.geography_code != "GLOBAL":
+            raise ValueError("Global boundary must use the GLOBAL geography code")
         return self
 
 
@@ -90,6 +118,11 @@ class FactorReviewQueueItem(BaseModel):
     source_document: str | None
     factor_year: int
     version: str
+    geography_code: str
+    geography_name: str
+    geography_boundary: Literal["global", "national", "subnational", "grid", "market", "facility", "other"]
+    valid_from: date | None
+    valid_to: date | None
     approval_status: Literal["pending", "approved", "rejected"]
     submitted_by_subject: str | None
     reviewer_subject: str | None
