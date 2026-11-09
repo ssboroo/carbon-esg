@@ -228,10 +228,10 @@ def review_emission_factor(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Энэ коэффициент өмнө нь баталгаажсан бөгөөд өөрчлөх боломжгүй",
                 )
-            if factor.geography_code == "LEGACY_UNSPECIFIED":
+            if factor.geography_code == "LEGACY_UNSPECIFIED" or factor.valid_from is None or factor.valid_to is None:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Хуучин коэффициентийн газарзүй тодорхойгүй тул газарзүй, хүчинтэй хугацаатай шинэ хувилбар бүртгэнэ үү",
+                    detail="Хуучин коэффициентийн газарзүй эсвэл хүчинтэй хугацаа тодорхойгүй тул бүрэн metadata-тай шинэ хувилбар бүртгэнэ үү",
                 )
             if factor.scope == "scope_2" and factor.scope_2_method not in {"location_based", "market_based"}:
                 raise HTTPException(

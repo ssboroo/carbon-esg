@@ -132,6 +132,10 @@ def test_calculation_rejects_tampered_or_unverified_activity_snapshots():
     factor.verified = False
     assert not activity_snapshot_is_valid(record, factor)
 
+    factor.verified = True
+    factor.valid_from = None
+    assert not activity_snapshot_is_valid(record, factor)
+
 
 def test_tenant_routes_require_authenticated_membership():
     client = TestClient(app)

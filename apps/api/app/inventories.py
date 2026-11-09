@@ -114,6 +114,8 @@ def activity_snapshot_is_valid(
         and factor_unit == record.activity_unit == record.factor_unit_snapshot
         and factor.factor_value == record.factor_value_snapshot
         and factor.geography_code != LEGACY_GEOGRAPHY_CODE
+        and factor.valid_from is not None
+        and factor.valid_to is not None
         and (factor.geography_code == "GLOBAL" or factor.geography_code == record.activity_geography_code)
         and (
             inventory is None
@@ -430,6 +432,8 @@ def create_activity_record(
                     EmissionFactor.id == request.emission_factor_id,
                     EmissionFactor.organization_id == organization_id,
                     EmissionFactor.geography_code != LEGACY_GEOGRAPHY_CODE,
+                    EmissionFactor.valid_from.is_not(None),
+                    EmissionFactor.valid_to.is_not(None),
                     or_(
                         EmissionFactor.verified.is_(True),
                         EmissionFactorReview.decision == "approved",
