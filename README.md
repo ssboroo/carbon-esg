@@ -1,118 +1,97 @@
 # Carbon ESG
 
-Mongolian-first ESG and greenhouse-gas accounting platform.
+Mongolia-first ESG and greenhouse-gas accounting SaaS. The MVP is built around traceable activity data, explicitly sourced emission factors, deterministic calculations, tenant isolation, and an auditable review trail.
 
-## Architecture
+## Current implementation
 
-- `apps/web`: Next.js + TypeScript frontend
-- `apps/api`: Python FastAPI backend
-- Authentication: Neon Managed Better Auth (email/password) with a same-origin Next.js proxy; FastAPI verifies EdDSA JWTs using Neon JWKS.
-- PostgreSQL multi-tenant persistence foundation is defined with SQLAlchemy models, Alembic migration, tenant-scoped composite foreign keys, and PostgreSQL row-level security. The current calculation endpoint remains stateless until authentication and tenant-aware persistence routes are implemented.
-- Emissions are calculated deterministically from activity data and a supplied, documented emission factor.
-- AI may assist with document extraction and report narratives, but must never invent emission factors or authoritative calculation results.
+- Web: Next.js App Router + TypeScript, Mongolian-language workspace.
+- API: FastAPI + Pydantic + SQLAlchemy.
+- Database: PostgreSQL/Neon schema with Alembic migrations 0001–0006, tenant-scoped foreign keys and row-level security.
+- Authentication: Neon Managed Auth; the web app uses a same-origin auth proxy and the API verifies EdDSA JWTs.
+- Organizations and inventories: authenticated organization workspaces and reporting periods.
+- Emission-factor registry: source name, HTTPS source URL, document reference, data/publication year, unit, version, geography, boundary type, and applicability dates; a second owner/admin performs independent review.
+- Activity records: activity amount, unit, actual geography, and a reviewed factor. Units must match exactly.
+- Calculations: deterministic Decimal arithmetic for Scope 1 and Scope 2. Scope 2 location-based and market-based totals remain separate; the selected primary method is used for the headline total.
+- Auditability: factor/activity provenance is copied into audit events and immutable calculation input snapshots.
+- Evidence Vault: tenant-scoped API/UI exists, but file upload is fail-closed until private object storage and ClamAV are configured.
+- Export: CSV export includes activity and factor provenance. It is not a full GRI/IFRS report.
 
-## Current API capability
+This is an integration-ready MVP preview candidate, **not a verified production deployment**. The default Neon branch has not been authorized for migration or customer data. See DEPLOYMENT.md before configuring a preview.
 
-The API currently supports a first-pass Scope 1 and Scope 2 calculation endpoint:
+## Factor geography and applicability
 
-- `GET /health` — service health
-- `GET /v1/auth/me` — protected identity verification; requires `Authorization: Bearer <Neon JWT>`
-- `GET /v1/organizations` — list organizations for the verified user (requires migrated PostgreSQL schema and `DATABASE_URL`)
-- `POST /v1/organizations` — create an organization and its initial owner membership atomically (requires migrated PostgreSQL schema and `DATABASE_URL`)
-- `POST /v1/calculations` — calculate an inventory from supplied activity records and emission factors
-- `GET /docs` — interactive API documentation
+Each new factor records a stable geography code and name, boundary type, and inclusive valid-from/valid-to dates. The factor data/publication year is separate from the dates during which the factor applies.
 
-Each record must include its own emission factor, denominator unit, source name, HTTPS source URL, year, and version. The activity unit must match the factor denominator. The API intentionally ships with **no hard-coded emission factors**.
+Each activity record stores its actual geography. A non-global factor can only be used when its geography code exactly matches the activity geography code. A factor with code GLOBAL may apply across activity geographies. The factor validity interval must cover the entire inventory reporting period.
 
-The factor value is interpreted as `kgCO2e per activity unit`. Results are returned in kgCO2e and tCO2e. The current calculation endpoint does not yet persist records or implement the Scope 2 market-based/location-based reporting distinction.
+The migration preserves missing legacy metadata rather than guessing: legacy factors receive LEGACY_UNSPECIFIED geography and NULL validity dates. They remain available for historical inspection but are excluded from new activity entry and recalculation. factor_year is never treated as proof of validity. See docs/accounting/FACTOR_GEOGRAPHY_AND_APPLICABILITY.md.
 
-### Example request
+## Accounting boundaries and known gaps
 
-```json
-{
-  "reporting_period_start": "2026-01-01",
-  "reporting_period_end": "2026-12-31",
-  "records": [
-    {
-      "name": "Purchased electricity",
-      "scope": "scope_2",
-      "category": "purchased_electricity",
-      "activity_amount": "1000",
-      "activity_unit": "kWh",
-      "emission_factor_kgco2e_per_unit": "0.5",
-      "factor_unit": "kWh",
-      "factor_source_name": "Example source — replace with a verified factor",
-      "factor_source_url": "https://example.org/emission-factors",
-      "factor_year": 2026,
-      "factor_version": "1.0"
-    }
-  ]
-}
-```
+- The current factor model accepts kgCO2e factors. It does not yet calculate gas-by-gas CO2, CH4, and N2O components or separate biogenic CO2.
+- GRI 102: Climate Change 2025 includes additional requirements such as gas-level Scope 2 breakdown, biogenic emissions, base-year information, and comparative periods. The current MVP is **not GRI 102 compliant**. Check the official standard and effective date before preparing disclosures.
+- Scope 3, full market-based contractual-instrument quality criteria, base-year recalculation, assurance workflows, and complete PDF/Excel reporting are not yet implemented.
+- No emission factors are hard-coded or AI-generated. No source-verified Mongolia factor library is pre-seeded. Do not use illustrative values for real reporting.
+- The stateless POST /v1/calculations endpoint remains available for explicit previews; the persisted organization/inventory workflow is the main MVP path.
 
-The factor in this example is illustrative only and must not be used for actual reporting.
+## API routes
 
-## PostgreSQL persistence foundation (not yet wired to API routes)
+- GET /health — health check.
+- GET /v1/auth/me — protected identity check.
+- GET and POST /v1/organizations — list/create organizations for the authenticated subject.
+- GET and POST /v1/organizations/{organization_id}/emission-factors — list approved factors / submit a new factor version.
+- GET /v1/organizations/{organization_id}/emission-factors/review-queue — owner/admin review queue.
+- POST /v1/organizations/{organization_id}/emission-factors/{factor_id}/review — independent approval/rejection.
+- GET and POST /v1/organizations/{organization_id}/inventories — list/create reporting periods.
+- GET and POST /v1/organizations/{organization_id}/inventories/{inventory_id}/activities — list/add activity records.
+- POST /v1/organizations/{organization_id}/inventories/{inventory_id}/calculate — create an immutable calculation snapshot.
+- POST /v1/calculations — stateless calculation preview.
+- GET /docs — FastAPI API documentation.
 
-The API now contains a tenant-scoped schema for organizations, memberships, versioned emission factors, inventories, activity records, calculation snapshots, and audit events. PostgreSQL row-level security requires transaction-local identity and organization context; membership discovery is scoped to the authenticated subject. Composite foreign keys prevent records from referencing another organization's inventory or emission factor. Emission-factor rows are immutable: corrections must be inserted as a new version.
-
-Neon Managed Better Auth is provisioned on the Neon default branch. The web app includes email sign-up/sign-in, same-origin auth proxy, protected workspace, and sign-out. FastAPI validates EdDSA JWT signature, issuer, audience, expiry, and subject. The `GET /v1/auth/me` endpoint is the first protected integration check. Organization list/create routes now use transaction-local identity and tenant RLS context. They remain unavailable until the tenant migration is applied and a restricted runtime database role is configured. Do not expose tenant data routes until a verified identity-to-organization membership dependency sets both RLS contexts on every transaction. Use a restricted runtime database role; do not run the app as a superuser or a role with BYPASSRLS.
-
-Set `DATABASE_URL` to Neon's pooled connection string for runtime requests. Set `DATABASE_URL_UNPOOLED` to the direct (non-pooler) string for migrations. Never commit either secret.
-
-Run the first schema migration only after reviewing it against a Neon development branch:
-
-```bash
-cd apps/api
-alembic upgrade head
-```
-
-The migration has not been applied to the shared Neon project. It is version-controlled and must be tested on a disposable Neon branch before any shared/main-branch application.
-
-## Authentication configuration
-
-Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` for the web service. The cookie secret must be at least 32 characters and server-only. Set `NEON_AUTH_BASE_URL` and `NEON_AUTH_JWKS_URL` for FastAPI. Localhost origins are pre-approved by Neon Auth; add the exact production HTTPS frontend origin to Neon Auth trusted domains after the Render URL exists.
+Database-backed routes require migrations and a restricted PostgreSQL runtime role. Evidence Vault additionally requires private object storage and malware scanning.
 
 ## Local development
 
 ### API
 
-```bash
+~~~bash
 cd apps/api
 python -m venv .venv
 # Activate the virtual environment, then:
 pip install -r requirements-dev.txt
 uvicorn app.main:app --reload
-```
-
-Run API unit tests:
-
-```bash
-cd apps/api
-pytest
-```
+pytest -q
+~~~
 
 ### Web
 
-```bash
+~~~bash
 cd apps/web
+cp .env.example .env.local
+# Set development-only Neon Auth values and NEXT_PUBLIC_API_URL.
 npm install
 npm run dev
-```
+npm run typecheck
+npm run build
+~~~
 
-## Accounting approach and limitations
+Use environment variable names in apps/api/.env.example and apps/web/.env.example. Never commit database URLs, auth secrets, S3 credentials, or tokens.
 
-The implementation follows the basic activity-data × documented-emission-factor calculation pattern described by the GHG Protocol. A production inventory still requires appropriate, region- and year-specific factors, transparent organizational and operational boundaries, data-quality controls, and review of applicable accounting methods. Scope 2 market-based/location-based accounting, database persistence, authentication, audit-log persistence, reporting exports, and Scope 3 are not yet implemented.
+## Database migration and deployment
 
-References:
-- [GHG Protocol — How do I calculate emissions?](https://ghgptechassistance.zendesk.com/hc/en-us/articles/37790958151700-How-do-I-calculate-emissions)
-- [GHG Protocol — Standards and Guidance](https://ghgprotocol.org/standards-guidance)
+Review migrations and apply them only to an isolated development/staging branch first:
 
-## MVP roadmap
+~~~bash
+cd apps/api
+DATABASE_URL_UNPOOLED="<direct Neon migration URL>" alembic upgrade head
+alembic current
+~~~
 
-1. Organization workspace and authentication
-2. Activity data entry and persistence
-3. Verified Mongolia-relevant emission-factor library with provenance and versioning
-4. Scope 1 and Scope 2 calculation and reporting methods
-5. Audit trail and PDF/Excel exports
-6. Scope 3 and expanded ESG disclosures
+Use a pooled connection with a restricted NOSUPERUSER NOBYPASSRLS runtime role for DATABASE_URL; do not run the API as neondb_owner. Never point a preview at the shared/default Neon branch. See DEPLOYMENT.md for the complete staging and go-live gate.
+
+## Official accounting references
+
+- GHG Protocol — Calculation Tools FAQ: https://ghgprotocol.org/calculation-tools-faq
+- GHG Protocol — Scope 2 Guidance: https://ghgprotocol.org/scope-2-guidance
+- GRI 102: Climate Change 2025: https://www.globalreporting.org/publications/documents/english/gri-102-climate-change-2025/
+- GRI Topic Standards for Climate Change and Energy: https://www.globalreporting.org/standards/standards-development/topic-standard-for-climate-change-and-energy/
