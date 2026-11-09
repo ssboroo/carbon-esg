@@ -50,7 +50,12 @@ class EmissionFactor(Base):
         CheckConstraint("source_url LIKE 'https://%'", name="ck_factor_https_source"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_factor_scope"),
         CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND scope_2_method IN ('location_based', 'market_based', 'legacy_unclassified')))", name="ck_factor_scope_2_method"),
+        CheckConstraint("geography_boundary IN ('global', 'national', 'subnational', 'grid', 'market', 'facility', 'other')", name="ck_factor_geography_boundary"),
+        CheckConstraint("geography_code ~ '^[A-Z0-9][A-Z0-9._:-]{0,31}$'", name="ck_factor_geography_code"),
+        CheckConstraint("length(btrim(geography_name)) > 0", name="ck_factor_geography_name"),
+        CheckConstraint("((valid_from IS NULL AND valid_to IS NULL) OR (valid_from IS NOT NULL AND valid_to IS NOT NULL AND valid_from <= valid_to))", name="ck_factor_validity_period"),
         Index("ix_factors_org_scope_category", "organization_id", "scope", "category"),
+        Index("ix_factors_org_geography", "organization_id", "geography_code", "valid_from", "valid_to"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False)
@@ -67,6 +72,12 @@ class EmissionFactor(Base):
     source_document: Mapped[str | None] = mapped_column(String(255))
     factor_year: Mapped[int] = mapped_column(Integer, nullable=False)
     version: Mapped[str] = mapped_column(String(80), nullable=False)
+    # The publication/data year is distinct from the dates during which the factor applies.
+    geography_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    geography_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    geography_boundary: Mapped[str] = mapped_column(String(24), nullable=False)
+    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     submitted_by_subject: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -136,7 +147,10 @@ class ActivityRecord(Base):
         CheckConstraint("activity_unit = factor_unit_snapshot", name="ck_activity_units_match"),
         CheckConstraint("scope IN ('scope_1', 'scope_2')", name="ck_activity_scope"),
         CheckConstraint("((scope = 'scope_1' AND scope_2_method IS NULL) OR (scope = 'scope_2' AND scope_2_method IN ('location_based', 'market_based', 'legacy_unclassified')))", name="ck_activity_scope_2_method"),
+        CheckConstraint("activity_geography_code ~ '^[A-Z0-9][A-Z0-9._:-]{0,31}$'", name="ck_activity_geography_code"),
+        CheckConstraint("length(btrim(activity_geography_name)) > 0", name="ck_activity_geography_name"),
         Index("ix_activity_org_inventory", "organization_id", "inventory_id"),
+        Index("ix_activity_org_geography", "organization_id", "activity_geography_code"),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     organization_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
@@ -146,6 +160,8 @@ class ActivityRecord(Base):
     scope: Mapped[str] = mapped_column(String(16), nullable=False)
     scope_2_method: Mapped[str | None] = mapped_column(String(24))
     category: Mapped[str] = mapped_column(String(64), nullable=False)
+    activity_geography_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    activity_geography_name: Mapped[str] = mapped_column(String(160), nullable=False)
     activity_amount: Mapped[Decimal] = mapped_column(Numeric(24, 8), nullable=False)
     activity_unit: Mapped[str] = mapped_column(String(32), nullable=False)
     # Factor and emissions are snapshotted so later factor additions cannot alter past reports.

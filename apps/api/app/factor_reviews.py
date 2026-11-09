@@ -52,6 +52,11 @@ def _queue_item(factor: EmissionFactor, review: EmissionFactorReview | None) -> 
         source_document=factor.source_document,
         factor_year=factor.factor_year,
         version=factor.version,
+        geography_code=factor.geography_code,
+        geography_name=factor.geography_name,
+        geography_boundary=factor.geography_boundary,
+        valid_from=factor.valid_from,
+        valid_to=factor.valid_to,
         approval_status=factor_approval_status(factor, review.decision if review else None),
         submitted_by_subject=factor.submitted_by_subject,
         reviewer_subject=review.reviewer_subject if review else None,
@@ -88,6 +93,11 @@ def submit_emission_factor(
                 source_document=request.source_document,
                 factor_year=request.factor_year,
                 version=request.version,
+                geography_code=request.geography_code,
+                geography_name=request.geography_name,
+                geography_boundary=request.geography_boundary,
+                valid_from=request.valid_from,
+                valid_to=request.valid_to,
                 verified=False,
                 submitted_by_subject=user["sub"],
             )
@@ -112,6 +122,11 @@ def submit_emission_factor(
                         "source_name": factor.source_name,
                         "source_url": factor.source_url,
                         "factor_year": factor.factor_year,
+                        "geography_code": factor.geography_code,
+                        "geography_name": factor.geography_name,
+                        "geography_boundary": factor.geography_boundary,
+                        "valid_from": factor.valid_from.isoformat() if factor.valid_from else None,
+                        "valid_to": factor.valid_to.isoformat() if factor.valid_to else None,
                     },
                 )
             )
@@ -213,6 +228,11 @@ def review_emission_factor(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Энэ коэффициент өмнө нь баталгаажсан бөгөөд өөрчлөх боломжгүй",
                 )
+            if factor.geography_code == "LEGACY_UNSPECIFIED":
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Хуучин коэффициентийн газарзүй тодорхойгүй тул газарзүй, хүчинтэй хугацаатай шинэ хувилбар бүртгэнэ үү",
+                )
             if factor.scope == "scope_2" and factor.scope_2_method not in {"location_based", "market_based"}:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
@@ -256,6 +276,11 @@ def review_emission_factor(
                         "source_name": factor.source_name,
                         "source_url": factor.source_url,
                         "factor_year": factor.factor_year,
+                        "geography_code": factor.geography_code,
+                        "geography_name": factor.geography_name,
+                        "geography_boundary": factor.geography_boundary,
+                        "valid_from": factor.valid_from.isoformat() if factor.valid_from else None,
+                        "valid_to": factor.valid_to.isoformat() if factor.valid_to else None,
                     },
                 )
             )

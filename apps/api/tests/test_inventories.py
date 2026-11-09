@@ -42,6 +42,8 @@ def test_activity_amount_must_be_positive_and_extra_fields_are_rejected():
             activity_amount=Decimal("0"),
             activity_unit="kWh",
             emission_factor_id="00000000-0000-0000-0000-000000000001",
+            geography_code="MNG-GRID-01",
+            geography_name="Монголын төвийн эрчим хүчний систем",
         )
 
     with pytest.raises(ValidationError):
@@ -52,6 +54,8 @@ def test_activity_amount_must_be_positive_and_extra_fields_are_rejected():
             activity_amount=Decimal("100"),
             activity_unit="kWh",
             emission_factor_id="00000000-0000-0000-0000-000000000001",
+            geography_code="MNG-GRID-01",
+            geography_name="Монголын төвийн эрчим хүчний систем",
             emission_factor_kgco2e_per_unit=Decimal("999"),
         )
 
@@ -68,8 +72,34 @@ def test_activity_emissions_use_decimal_and_eight_place_rounding():
     ) == Decimal("1.23456790")
 
 
+def test_factor_geography_and_validity_must_cover_the_reporting_period():
+    from app.inventories import factor_applies_to_activity
+
+    factor = SimpleNamespace(
+        geography_code="MNG-GRID-01",
+        valid_from=date(2026, 1, 1),
+        valid_to=date(2026, 12, 31),
+    )
+    inventory = SimpleNamespace(
+        reporting_period_start=date(2026, 1, 1),
+        reporting_period_end=date(2026, 12, 31),
+    )
+    assert factor_applies_to_activity(factor, inventory, "MNG-GRID-01")
+    assert not factor_applies_to_activity(factor, inventory, "MNG-GRID-02")
+    partial_inventory = SimpleNamespace(
+        reporting_period_start=date(2025, 12, 1),
+        reporting_period_end=date(2026, 12, 31),
+    )
+    assert not factor_applies_to_activity(factor, partial_inventory, "MNG-GRID-01")
+    factor.valid_from = None
+    factor.valid_to = None
+    assert not factor_applies_to_activity(factor, inventory, "MNG-GRID-01")
+
+
 def test_calculation_rejects_tampered_or_unverified_activity_snapshots():
     record = SimpleNamespace(
+        activity_geography_code="MNG-GRID-01",
+        activity_geography_name="Монголын төвийн эрчим хүчний систем",
         scope="scope_2",
         scope_2_method="location_based",
         category="purchased_electricity",
@@ -87,6 +117,11 @@ def test_calculation_rejects_tampered_or_unverified_activity_snapshots():
         gas_basis="CO2e",
         factor_unit="kWh",
         factor_value=Decimal("0.5"),
+        geography_code="MNG-GRID-01",
+        geography_name="Монголын төвийн эрчим хүчний систем",
+        geography_boundary="grid",
+        valid_from=date(2026, 1, 1),
+        valid_to=date(2026, 12, 31),
     )
     assert activity_snapshot_is_valid(record, factor)
 

@@ -42,7 +42,8 @@ factor_router = APIRouter(
 
 WRITE_ROLES = {"owner", "admin", "editor"}
 EIGHT_PLACES = Decimal("0.00000001")
-METHODOLOGY_VERSION = "scope12-v1.1.0-dual-method"
+METHODOLOGY_VERSION = "scope12-v1.2.0-geography-validity"
+LEGACY_GEOGRAPHY_CODE = "LEGACY_UNSPECIFIED"
 
 
 def calculate_activity_emissions(activity_amount: Decimal, factor_value: Decimal) -> Decimal:
@@ -80,10 +81,26 @@ def calculate_scope2_method_totals(scope_1: Decimal, scope_2_records: list[Activ
     )
 
 
+def factor_applies_to_activity(
+    factor: EmissionFactor,
+    inventory: Inventory,
+    activity_geography_code: str,
+) -> bool:
+    """Require known geography and a validity interval covering the full inventory period."""
+    if factor.geography_code == LEGACY_GEOGRAPHY_CODE:
+        return False
+    if factor.valid_from is None or factor.valid_to is None:
+        return False
+    if factor.valid_from > inventory.reporting_period_start or factor.valid_to < inventory.reporting_period_end:
+        return False
+    return factor.geography_code == "GLOBAL" or factor.geography_code == activity_geography_code
+
+
 def activity_snapshot_is_valid(
     record: ActivityRecord,
     factor: EmissionFactor,
     review_decision: str | None = None,
+    inventory: Inventory | None = None,
 ) -> bool:
     """Validate the immutable activity/factor snapshot and its approval state."""
     factor_unit = factor.factor_unit.strip()
@@ -96,6 +113,12 @@ def activity_snapshot_is_valid(
         and factor.gas_basis.strip().casefold() == "co2e"
         and factor_unit == record.activity_unit == record.factor_unit_snapshot
         and factor.factor_value == record.factor_value_snapshot
+        and factor.geography_code != LEGACY_GEOGRAPHY_CODE
+        and (factor.geography_code == "GLOBAL" or factor.geography_code == record.activity_geography_code)
+        and (
+            inventory is None
+            or factor_applies_to_activity(factor, inventory, record.activity_geography_code)
+        )
         and calculate_activity_emissions(
             record.activity_amount,
             record.factor_value_snapshot,
@@ -168,6 +191,13 @@ def _activity_summary(record: ActivityRecord, factor: EmissionFactor) -> Activit
         factor_source_name=factor.source_name,
         factor_source_url=factor.source_url,
         factor_year=factor.factor_year,
+        activity_geography_code=record.activity_geography_code,
+        activity_geography_name=record.activity_geography_name,
+        factor_geography_code=factor.geography_code,
+        factor_geography_name=factor.geography_name,
+        factor_geography_boundary=factor.geography_boundary,
+        factor_valid_from=factor.valid_from,
+        factor_valid_to=factor.valid_to,
         emissions_kgco2e=record.emissions_kgco2e,
     )
 
@@ -228,6 +258,11 @@ def list_verified_emission_factors(
                     source_document=factor.source_document,
                     factor_year=factor.factor_year,
                     version=factor.version,
+                    geography_code=factor.geography_code,
+                    geography_name=factor.geography_name,
+                    geography_boundary=factor.geography_boundary,
+                    valid_from=factor.valid_from,
+                    valid_to=factor.valid_to,
                     approval_status="approved",
                 )
                 for factor in factors
@@ -394,6 +429,7 @@ def create_activity_record(
                 .where(
                     EmissionFactor.id == request.emission_factor_id,
                     EmissionFactor.organization_id == organization_id,
+                    EmissionFactor.geography_code != LEGACY_GEOGRAPHY_CODE,
                     or_(
                         EmissionFactor.verified.is_(True),
                         EmissionFactorReview.decision == "approved",
@@ -405,6 +441,11 @@ def create_activity_record(
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                     detail="Баталгаажсан, тухайн байгууллагад хамаарах ялгарлын коэффициент олдсонгүй",
+                )
+            if not factor_applies_to_activity(factor, inventory, request.geography_code):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Коэффициентийн газарзүйн хамрах хүрээ эсвэл хүчинтэй хугацаа тайлант өгөгдөлтэй тохирохгүй байна",
                 )
 
             allowed_categories = (
@@ -449,6 +490,8 @@ def create_activity_record(
                 scope=request.scope,
                 scope_2_method=factor.scope_2_method,
                 category=request.category,
+                activity_geography_code=request.geography_code,
+                activity_geography_name=request.geography_name,
                 activity_amount=request.activity_amount,
                 activity_unit=request.activity_unit,
                 factor_value_snapshot=factor.factor_value,
@@ -469,6 +512,13 @@ def create_activity_record(
                         "scope": request.scope,
                         "scope_2_method": factor.scope_2_method,
                         "category": request.category,
+                        "activity_geography_code": request.geography_code,
+                        "activity_geography_name": request.geography_name,
+                        "factor_geography_code": factor.geography_code,
+                        "factor_geography_name": factor.geography_name,
+                        "factor_geography_boundary": factor.geography_boundary,
+                        "factor_valid_from": factor.valid_from.isoformat() if factor.valid_from else None,
+                        "factor_valid_to": factor.valid_to.isoformat() if factor.valid_to else None,
                         "activity_amount": str(request.activity_amount),
                         "activity_unit": request.activity_unit,
                         "factor_code": factor.factor_code,
@@ -510,7 +560,7 @@ def calculate_persisted_inventory(
     try:
         with db.begin():
             _require_membership(db, user["sub"], organization_id, write=True)
-            _get_inventory(db, organization_id, inventory_id)
+            inventory = _get_inventory(db, organization_id, inventory_id)
             rows = db.execute(
                 select(ActivityRecord, EmissionFactor, EmissionFactorReview.decision)
                 .join(
@@ -535,7 +585,7 @@ def calculate_persisted_inventory(
                     detail="Тооцоолохын өмнө үйл ажиллагааны мөр нэмнэ үү",
                 )
             if any(
-                not activity_snapshot_is_valid(record, factor, review_decision)
+                not activity_snapshot_is_valid(record, factor, review_decision, inventory)
                 for record, factor, review_decision in rows
             ):
                 raise HTTPException(
@@ -575,6 +625,13 @@ def calculate_persisted_inventory(
                         "scope": record.scope,
                         "scope_2_method": record.scope_2_method,
                         "category": record.category,
+                        "activity_geography_code": record.activity_geography_code,
+                        "activity_geography_name": record.activity_geography_name,
+                        "factor_geography_code": factor.geography_code,
+                        "factor_geography_name": factor.geography_name,
+                        "factor_geography_boundary": factor.geography_boundary,
+                        "factor_valid_from": factor.valid_from.isoformat() if factor.valid_from else None,
+                        "factor_valid_to": factor.valid_to.isoformat() if factor.valid_to else None,
                         "activity_amount": str(record.activity_amount),
                         "activity_unit": record.activity_unit,
                         "emission_factor_id": str(factor.id),

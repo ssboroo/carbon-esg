@@ -28,6 +28,11 @@ def valid_factor_payload() -> dict:
         "source_document": "Grid factors 2026, table 1",
         "factor_year": 2026,
         "version": "2026-v1",
+        "geography_code": "MNG-GRID-01",
+        "geography_name": "Монголын төвийн эрчим хүчний систем",
+        "geography_boundary": "grid",
+        "valid_from": "2026-01-01",
+        "valid_to": "2026-12-31",
     }
 
 
@@ -41,6 +46,8 @@ def test_factor_submission_requires_https_provenance_and_normalizes_text():
     assert factor.factor_unit == "kWh"
     assert factor.factor_value == Decimal("0.500000000000")
     assert factor.source_url.scheme == "https"
+    assert factor.geography_code == "MNG-GRID-01"
+    assert factor.valid_from.isoformat() == "2026-01-01"
 
 
 def test_factor_submission_rejects_http_url_and_unknown_fields():
@@ -51,6 +58,21 @@ def test_factor_submission_rejects_http_url_and_unknown_fields():
 
     payload = valid_factor_payload()
     payload["ai_generated_factor"] = True
+    with pytest.raises(ValidationError):
+        EmissionFactorCreate(**payload)
+
+
+def test_factor_submission_rejects_reversed_validity_period():
+    payload = valid_factor_payload()
+    payload["valid_from"] = "2026-12-31"
+    payload["valid_to"] = "2026-01-01"
+    with pytest.raises(ValidationError):
+        EmissionFactorCreate(**payload)
+
+
+def test_factor_submission_requires_explicit_geography():
+    payload = valid_factor_payload()
+    payload.pop("geography_code")
     with pytest.raises(ValidationError):
         EmissionFactorCreate(**payload)
 
@@ -97,6 +119,8 @@ def test_activity_snapshot_accepts_approved_review_without_mutating_factor():
         factor_value_snapshot=Decimal("0.5"),
         factor_unit_snapshot="kWh",
         emissions_kgco2e=Decimal("1.00000000"),
+        activity_geography_code="MNG-GRID-01",
+        activity_geography_name="Монголын төвийн эрчим хүчний систем",
     )
     factor = SimpleNamespace(
         verified=False,
@@ -106,6 +130,11 @@ def test_activity_snapshot_accepts_approved_review_without_mutating_factor():
         gas_basis="CO2e",
         factor_unit="kWh",
         factor_value=Decimal("0.5"),
+        geography_code="MNG-GRID-01",
+        geography_name="Монголын төвийн эрчим хүчний систем",
+        geography_boundary="grid",
+        valid_from=__import__("datetime").date(2026, 1, 1),
+        valid_to=__import__("datetime").date(2026, 12, 31),
     )
 
     assert activity_snapshot_is_valid(record, factor, "approved")
